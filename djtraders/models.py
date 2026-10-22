@@ -350,7 +350,7 @@ class Customer(models.Model):
             {"month": "Month", "revenue": "Revenue ($)"},
         )
 
-    def performance(self):
+    def dashboard_stats(self):
         frame = self._order_lines_frame()
 
         if frame.empty:
@@ -359,6 +359,7 @@ class Customer(models.Model):
         revenue = frame["revenue"].sum()
         orders = frame["order_id"].nunique()
         average_order = revenue / orders if orders else 0
+        
 
         return {
             "orders": orders,

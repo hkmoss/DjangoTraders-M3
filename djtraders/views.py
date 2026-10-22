@@ -314,7 +314,7 @@ def customer_dashboard(request, customer_id):
     customer = get_object_or_404(Customer, pk=customer_id)
     context = {
         "customer": customer,
-        "performance": customer.performance(),
+        "stats": customer.dashboard_stats(),
         "annual_plot": customer.annual_orders_plot(),
         "order_years": customer.order_years(),
     }

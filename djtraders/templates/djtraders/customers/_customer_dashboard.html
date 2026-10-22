@@ -5,7 +5,7 @@
             <div class="card-body text-center">
                 <div class="text-muted small">Orders</div>
                 <div class="fs-3 fw-bold">
-                    {{ performance.orders }}
+                    {{ stats.orders }}
                 </div>
             </div>
         </div>
@@ -16,7 +16,7 @@
             <div class="card-body text-center">
                 <div class="text-muted small">Average Order</div>
                 <div class="fs-3 fw-bold">
-                    ${{ performance.average_order|floatformat:0 }}
+                    ${{ stats.average_order|floatformat:0 }}
                 </div>
             </div>
         </div>
@@ -27,7 +27,7 @@
             <div class="card-body text-center">
                 <div class="text-muted small">Last Order</div>
                 <div class="fs-5 fw-bold">
-                    {{ performance.last_order|date:"M j, Y" }}
+                    {{ stats.last_order|date:"M j, Y" }}
                 </div>
             </div>
         </div>
