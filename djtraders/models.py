@@ -1,259 +1,45 @@
 """
-Cleaned-up models generated from `manage.py inspectdb` (see
-rev_engineer_models.py for the raw, unedited output). inspectdb reads
-an existing database's tables and writes a first-draft model per table,
-but leaves manual work behind: every model here is set managed=False
-(this app reads a database Django didn't create, so it should never try
-to migrate these tables), model names were singularized (Category,
-Customer, ...) and reordered so each is defined before anything that
-references it by bare class name, and every foreign key was given a
-real on_delete (inspectdb defaults to DO_NOTHING) matching what should
-actually happen when the related row is removed.
+The app's models, cleaned up from `manage.py inspectdb` (rev_engineer_models.py
+has the raw output). Every model is managed=False, because this app reads a
+database Django didn't create and must never migrate those tables. Names are
+singular, models are ordered so each is defined before anything that references
+it by bare class name, and every foreign key has a real on_delete (inspectdb
+defaults to DO_NOTHING).
 
-Beyond that baseline, most models add a few computed @property values
-(e.g. Order.order_total, Customer.formatted_address) and a couple carry
-classmethods used by views.py: *.search() backs a list page's search
-form, and Employee.authenticate/Customer.authenticate back this app's
-two hand-rolled logins (no django.contrib.auth involved). Each one's
-own docstring below explains the specifics.
+On top of that the models add computed @property values (e.g.
+Order.order_total), search() classmethods that back the list pages,
+authenticate() classmethods for the hand-rolled logins (no django.contrib.auth),
+and, for the dashboards, methods that return Plotly charts built with the
+helpers in charts.py.
 """
 
 import calendar
 
-import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from django.db import models
 from django.db.models import Count, ExpressionWrapper, F, FloatField, Sum
 
-
-# region [WHY] one fixed color per bar
-# The eight categorical hues of the project's chart palette, in a fixed
-# order (blue, orange, aqua, yellow, magenta, green, violet, red). A bar
-# chart gives each x value its own hue so bars are easy to tell apart;
-# _bar_figure picks them by position in a stable ordering, so
-# the same category or product keeps the same color in every chart on
-# the dashboard. With more than eight bars the colors repeat -- the axis
-# label, not the color, is what identifies a bar.
-# endregion
-CHART_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
-
-
-# region [WHY] chart helpers shared by every portal
-# The functions below turn order lines into DataFrames and DataFrames
-# into chart HTML. They live at module level, not on one model, so the
-# customer, employee and supplier pages all build their charts the same
-# way: get a queryset of OrderDetail rows for that portal's user, pass
-# it to _lines_frame, group with pandas, and hand the result to
-# _bar_figure. Revenue is each line's unit_price * quantity *
-# (1 - discount), the same formula as OrderDetail.line_total -- not
-# Product.unit_price, which is today's list price and ignores both
-# discounts and any price change since the order was placed.
-# endregion
-def _lines_frame(lines):
-    """
-    Turns a queryset of OrderDetail rows into a pandas DataFrame, one
-    row per line, with the columns the chart methods group on:
-    order_id, order_date, year, month, product_name, category_name,
-    customer_name, quantity, and revenue (an empty DataFrame when there
-    are no lines).
-
-    .values() asks the database for just those columns as plain dicts
-    instead of building a model object per row, which is what
-    pd.DataFrame wants.
-    """
-    rows = lines.values(
-        "order_id",
-        "order__order_date",
-        "order__customer__company_name",
-        "product__product_name",
-        "product__category__category_name",
-        "unit_price",
-        "quantity",
-        "discount",
-    )
-    frame = pd.DataFrame(list(rows))
-    if frame.empty:
-        return frame
-    frame = frame.rename(columns={
-        "order__order_date": "order_date",
-        "order__customer__company_name": "customer_name",
-        "product__product_name": "product_name",
-        "product__category__category_name": "category_name",
-    })
-    frame["order_date"] = pd.to_datetime(frame["order_date"])
-    frame["year"] = frame["order_date"].dt.year
-    frame["month"] = frame["order_date"].dt.month
-    frame["revenue"] = frame["unit_price"] * frame["quantity"] * (1 - frame["discount"])
-    frame["category_name"] = frame["category_name"].fillna("Uncategorized")
-    frame["customer_name"] = frame["customer_name"].fillna("Unknown customer")
-    return frame
-
-
-def _figure_html(figure):
-    """
-    Turns a Plotly figure into an HTML <div> (plus the small <script>
-    that draws it). include_plotlyjs=False leaves the ~4 MB plotly.js
-    library out of every chart: the page loads it once itself
-    (customer_detail.html) instead of re-sending it with each tab.
-    """
-    # The chart title is styled like a card title in the page (Bootstrap's h5: 20px, dark
-    # text, flush left in the card), so a chart and an HTML card heading look alike.
-    figure.update_layout(
-        template="plotly_white", margin=dict(l=40, r=20, t=50, b=40),
-        title=dict(x=0, xref="container", xanchor="left", font=dict(size=20, color="#212529", family='"Segoe UI", Tahoma, "Trebuchet MS", sans-serif')),
-    )
-    return figure.to_html(full_html=False, include_plotlyjs=False)
-
-
-def _color_map(names):
-    """Maps each distinct name to a CHART_COLORS entry by its position in sorted order (repeating after eight)."""
-    ordered = sorted(set(names), key=str)
-    return {name: CHART_COLORS[i % len(CHART_COLORS)] for i, name in enumerate(ordered)}
-
-
-def _bar_figure(data, category, value, title, labels, color_names=None,
-                horizontal=False, height=None, trend=True, text=None, hover=None):
-    """
-    Builds one bar chart the same way for every chart on the dashboard:
-    a bar per row of data, each bar its own color (see CHART_COLORS),
-    plus (when trend=True) a dashed linear trend line over the bars.
-
-    data is a DataFrame already in display order; category is the
-    column of bar names and value the column of bar lengths.
-    color_names is the full set of names to assign colors from (so a
-    chart showing only the top ten products still uses the same colors
-    as a chart showing all of them); it defaults to data[category].
-
-    The trend line is a straight least-squares fit (np.polyfit,
-    degree 1) of value against bar position, 0, 1, 2, ... For
-    time-ordered bars (months, years) that is a real trend. For bars
-    sorted by size (products, categories) it is the average rate at
-    which the bars fall off from largest to smallest. The product and
-    category charts pass trend=False for that reason: the line says
-    little about bars already sorted by size. The fitted line is clamped at zero,
-    since a negative revenue or unit count makes no sense.
-
-    Every bar is labeled with its value at the end of the bar: whole
-    units for the quantity column, whole dollars for anything else. Pass
-    text (a list of labels, one per bar) to replace those labels; the
-    supplier chart does, to show percentages. Pass hover (a list of strings, one
-    per bar, with <br> for line breaks) to replace the hover box's text, as the
-    revenue-over-time chart does to add the order count. Plotly needs room beyond
-    the longest bar for the label, so the value axis is stretched 25%
-    (55% for long labels like dollars plus a percentage) past the largest bar,
-    and the label font is 11 pt.
-
-    Every figure gets an explicit height: left unset, Plotly sizes to
-    its container, and inside the dashboard's equal-height cards that
-    container's height depends on the figure itself, so the chart
-    collapses to a sliver.
-    """
-    colors = _color_map(data[category] if color_names is None else color_names)
-    names = list(data[category])
-    values = list(data[value])
-    bar_colors = [colors[name] for name in names]
-    if text is None:
-        text = [f"{v:,.0f}" if value == "quantity" else f"${v:,.0f}" for v in values]
-
-    # The hover box shows the bar's name and its label (the same text printed
-    # at the bar's end). Without a hovertemplate Plotly labels an unnamed
-    # trace "trace 0" and prints the raw axis numbers.
-    tip_h, tip_v = "<b>%{y}</b><br>%{text}<extra></extra>", "<b>%{x}</b><br>%{text}<extra></extra>"
-    if hover is not None:
-        tip_h = tip_v = "%{customdata}<extra></extra>"
-    figure = go.Figure()
-    if horizontal:
-        figure.add_bar(x=values, y=names, orientation="h", marker_color=bar_colors, showlegend=False,
-                       text=text, textposition="outside", cliponaxis=False,
-                       customdata=hover, hovertemplate=tip_h)
-    else:
-        figure.add_bar(x=names, y=values, marker_color=bar_colors, showlegend=False,
-                       text=text, textposition="outside", cliponaxis=False,
-                       customdata=hover, hovertemplate=tip_v)
-
-    if trend and len(values) >= 2:
-        slope, intercept = np.polyfit(np.arange(len(values)), values, 1)
-        fitted = list(np.maximum(slope * np.arange(len(values)) + intercept, 0))
-        prefix = "" if value == "quantity" else "$"
-        trend = dict(mode="lines", name="Trend", line=dict(color="#444444", width=2, dash="dash"),
-                     hovertemplate="Trend: " + prefix + "%{y:,.0f}<extra></extra>")
-        if horizontal:
-            figure.add_scatter(x=fitted, y=names, **trend)
-        else:
-            figure.add_scatter(x=names, y=fitted, **trend)
-
-    figure.update_layout(
-        title=title, bargap=0.2, height=height or 420,
-        xaxis_title=labels.get(category if not horizontal else value),
-        yaxis_title=labels.get(value if not horizontal else category),
-        legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="right", x=1.0),
-    )
-    if values:
-        # Long labels ("$56,526 (10.7%)") need more room past the bar than short ones.
-        room = 1.25 if max(len(label) for label in text) <= 8 else 1.55
-        headroom = [0, max(values) * room]
-        if horizontal:
-            figure.update_xaxes(range=headroom)
-        else:
-            figure.update_yaxes(range=headroom)
-    figure.update_traces(textfont_size=11, selector=dict(type="bar"))
-    if not horizontal:
-        figure.update_xaxes(type="category")
-    return _figure_html(figure)
-
-
-def _line_figure(data, x, y, title, labels, height=360, hover=None):
-    """
-    Builds one line chart (with a marker on each point) for values that run
-    in time order, such as revenue by month: bars suit separate groups, a
-    line suits a sequence. data is a DataFrame already in time order; x is
-    the column of point names (months) and y the column of values.
-
-    The line is smoothed into a curve (shape="spline"; smoothing runs from 0,
-    straight segments, up to 1.3). The markers stay on the real values, so
-    the curve is only a visual aid: between two points it can dip a little
-    below or rise above them.
-
-    Like _bar_figure, it passes hover (a list of strings, one per point) to
-    the hover box and ends in _figure_html. The value axis starts at zero so
-    a quiet month looks quiet, and the x names are treated as categories so
-    Plotly keeps them in the order given instead of guessing they are dates.
-    """
-    figure = go.Figure()
-    figure.add_scatter(
-        x=list(data[x]), y=list(data[y]), mode="lines+markers", showlegend=False,
-        line=dict(color=CHART_COLORS[0], width=3, shape="spline", smoothing=0.8), marker=dict(size=7),
-        customdata=hover, hovertemplate="%{customdata}<extra></extra>",
-    )
-    figure.update_layout(
-        title=title, height=height,
-        xaxis_title=labels.get(x), yaxis_title=labels.get(y),
-    )
-    figure.update_xaxes(type="category")
-    figure.update_yaxes(rangemode="tozero", tickprefix="$")
-    return _figure_html(figure)
+from .charts import (
+    CHART_COLORS,
+    bar_figure,
+    figure_html,
+    line_figure,
+    lines_frame,
+    pie_figure,
+    top_with_other,
+)
 
 
 class Category(models.Model):
-    """
-    A product category. Defined before Product (the model that references
-    it) so Product.category can use the bare class name instead of a
-    forward-reference string - see the module docs for why order
-    matters here.
-    """
+    """A product category. Defined before Product so Product.category can use the bare class name."""
     category_id = models.SmallIntegerField(primary_key=True)
     category_name = models.CharField(max_length=15)
     description = models.TextField(blank=True, null=True)
     picture = models.BinaryField(blank=True, null=True)
 
     class Meta:
-        """
-        Meta configures the model/table itself, not a database column.
-        managed=False: table already exists, Django shouldn't migrate it.
-        db_table: the real table name, since it doesn't match Django's
-        default ("djtraders_category").
-        """
+        """Meta configures the table, not a column. managed=False: the table exists, so Django must not migrate it. db_table: its real name."""
         managed = False
         db_table = 'categories'
 
@@ -276,33 +62,22 @@ class Customer(models.Model):
 
     @property
     def formatted_address(self):
-        """
-        This customer's address, city, region, postal_code, and country
-        joined into one line (blank ones skipped), instead of five
-        separate fields -- used by customer_detail.html.
-        """
+        """This customer's address fields joined into one line, blanks skipped."""
         parts = [self.address, self.city, self.region, self.postal_code, self.country]
         return ", ".join(part for part in parts if part)
 
     # region [WHY] charts built from a DataFrame
-    # Each *_plot method below follows the same four steps: (1) pull
-    # this customer's placed order lines out of the database as a
-    # DataFrame (_order_lines_frame), (2) group and sum with pandas,
-    # (3) hand the result to _bar_figure to draw a Plotly figure, (4) turn
-    # that figure into an HTML <div> string a template can print with
-    # |safe. Revenue is each line's unit_price * quantity * (1 - discount),
-    # the same formula as OrderDetail.line_total -- not Product.unit_price,
-    # which is today's list price and ignores both discounts and any
-    # price change since the order was placed.
+    # Each *_plot method pulls this customer's placed order lines into a DataFrame
+    # (_order_lines_frame), groups and sums them with pandas, and hands the result to
+    # bar_figure, which returns chart HTML a template prints with |safe.
     # endregion
     def _order_lines_frame(self):
         """
-        Every line on this customer's placed orders as a pandas DataFrame
-        (see _lines_frame, above the models, for the columns).
-        order_date__isnull=False leaves out an unplaced cart, the same
-        "order_date is the placed flag" rule customer_detail uses.
+        Every line on this customer's placed orders as a DataFrame (see
+        lines_frame in charts.py). An order with no order_date is an unplaced
+        cart and is left out.
         """
-        return _lines_frame(OrderDetail.objects.filter(
+        return lines_frame(OrderDetail.objects.filter(
             order__customer=self, order__order_date__isnull=False
         ))
 
@@ -318,22 +93,17 @@ class Customer(models.Model):
             return None
         annual = frame.groupby("year", as_index=False)["revenue"].sum()
         annual["year"] = annual["year"].astype(str)
-        return _bar_figure(
+        return bar_figure(
             annual, "year", "revenue", "Revenue by year",
             {"year": "Year", "revenue": "Revenue ($)"},
         )
 
     def orders_placed_plot(self, year):
         """
-        Bar chart of this customer's revenue for each month of one year (the
-        chart the dashboard's year dropdown loads), or None when that year
-        has no placed orders. The view has already checked that year is one
-        of order_years().
-
-        Same four steps as annual_orders_plot, with one filter first and a
-        different grouping. reindex(range(1, 13), fill_value=0) puts all
-        twelve months on the chart: without it a month with no orders would
-        be missing from the grouped result instead of showing as $0.
+        Bar chart of this customer's revenue for each month of one year (what the
+        dashboard's year dropdown loads), or None when that year has no placed
+        orders. reindex(range(1, 13), fill_value=0) puts all twelve months on the
+        chart: without it a month with no orders would be missing instead of $0.
         """
         frame = self._order_lines_frame()
         frame = frame[frame["year"] == year]
@@ -345,44 +115,40 @@ class Customer(models.Model):
             .reset_index()
         )
         monthly["month"] = [calendar.month_abbr[m] for m in monthly["month"]]
-        return _bar_figure(
+        return bar_figure(
             monthly, "month", "revenue", f"Revenue by month, {year}",
             {"month": "Month", "revenue": "Revenue ($)"},
         )
 
     def dashboard_stats(self):
+        """Summary statistics for customer dashboard tiles."""
         frame = self._order_lines_frame()
 
         if frame.empty:
-            return None
-
-        revenue = frame["revenue"].sum()
-        orders = frame["order_id"].nunique()
-        average_order = revenue / orders if orders else 0
-        
+            return {
+                "total_revenue": 0,
+                "order_count": 0,
+                "average_order": 0,
+                "last_order": None,
+            }
 
         return {
-            "orders": orders,
-            "average_order": average_order,
+            "total_revenue": float(frame["revenue"].sum()),
+            "order_count": frame["order_id"].nunique(),
+            "average_order": float(frame["revenue"].sum())
+                            / frame["order_id"].nunique(),
             "last_order": frame["order_date"].max(),
-        }
+    }
 
     @classmethod
     def search(cls, company_name="", contact_name="", contact_title="", city="", country=""):
         """
-        Filters customers by any combination of company name, contact
-        name, contact title, city, and country, returning every customer
-        when none are given. Used by customer_list (djtraders/views.py)
-        to back its search form.
-
-        A @classmethod, not an instance method: it builds a fresh
-        queryset from scratch (cls.objects...) rather than acting on an
-        existing Customer, so it needs the class (cls) instead of self.
-
-        company_name/contact_name use "icontains" (case-insensitive
-        substring match) since they're free-text; contact_title/city/
-        country use an exact match, since those values always come from
-        a dropdown, not free text.
+        Filters customers by any combination of company name, contact name,
+        contact title, city and country (every customer when none are given), for
+        customer_list's search form. A @classmethod because it builds a new
+        queryset from the class (cls) rather than acting on one Customer. The two
+        free-text fields use "icontains" (case-insensitive substring); the others
+        come from dropdowns, so they match exactly.
         """
         queryset = cls.objects.order_by("company_name")
         if company_name:
@@ -400,11 +166,9 @@ class Customer(models.Model):
     @classmethod
     def authenticate(cls, customer_id, password):
         """
-        Looks up the customer by the ID entered in the login form and
-        checks their password: a direct string compare against this
-        customer's own password column (unlike Employee, which has no
-        password column and uses a derived birth-year stand-in instead).
-        Returns the matching Customer on success, None otherwise.
+        Checks a login: the customer with this ID, and a direct compare of the
+        password column (unlike Employee, which has no password column). Returns
+        the Customer on success, None otherwise.
         """
         customer = cls.objects.filter(pk=customer_id).first()
         if customer is None:
@@ -416,21 +180,12 @@ class Customer(models.Model):
     @classmethod
     def generate_customer_id(cls, company_name):
         """
-        Builds a new, unique 5-letter customer_id from a company name,
-        matching Northwind's own existing style (e.g. "Alfreds
-        Futterkiste" -> ALFKI). Called only from customer_create's POST
-        handler (djtraders/views.py), after CustomerEditForm's own
-        validation has already passed -- a customer never types or picks
-        this value themselves, the same way Order.order_id comes from
-        the database's auto-increment rather than from whoever places
-        the order.
-
-        Takes the company name's letters (spaces/punctuation/digits
-        stripped, uppercased), first five, padding a short name with
-        "X". customer_id's own primary-key uniqueness constraint is the
-        real, final guarantee against a collision; the loop below just
-        makes it likely a plausible ID is found on the first try, rather
-        than a user ever seeing that constraint reject one.
+        Builds a new, unique 5-letter customer_id from a company name, in the
+        existing style ("Alfreds Futterkiste" -> ALFKI). Called by
+        customer_create after the form validates; a customer never types an ID.
+        It takes the name's first five letters (padded with "X"), and if that ID is
+        taken, swaps in a trailing counter (ALFK1, ALFK2, ...). The primary key's own
+        uniqueness is the final guarantee; the loop just avoids a rejected insert.
         """
         letters = "".join(char for char in company_name.upper() if char.isalpha())
         base = (letters + "XXXXX")[:5]
@@ -438,9 +193,7 @@ class Customer(models.Model):
         if not cls.objects.filter(pk=base).exists():
             return base
 
-        # base alone is taken -- replace its trailing digits with a
-        # counter (e.g. ALFK1, ALFK2, ... ALFK9, ALF10, ALF11, ...) until
-        # an unused 5-character value turns up.
+        # base alone is taken: replace its trailing characters with a counter.
         suffix = 1
         while suffix < 100_000:
             digits = str(suffix)
@@ -449,8 +202,7 @@ class Customer(models.Model):
                 return candidate
             suffix += 1
 
-        # Practically unreachable for a class-sized dataset -- every
-        # 5-character value derived from this base is already taken.
+        # Practically unreachable for a dataset this size.
         raise ValueError(f"Could not generate a unique customer_id from {company_name!r}")
 
     class Meta:
@@ -487,47 +239,24 @@ class Employee(models.Model):
 
     @property
     def formatted_address(self):
-        """
-        This employee's address, city, region, postal_code, and country
-        joined into one line (blanks skipped), same pattern as
-        Customer.formatted_address -- used by employee_detail.html.
-        """
+        """This employee's address fields joined into one line, blanks skipped."""
         parts = [self.address, self.city, self.region, self.postal_code, self.country]
         return ", ".join(part for part in parts if part)
 
     @property
     def is_manager(self):
         """
-        True when at least one employee reports to this one. A manager
-        may open any employee's page and sees the Employees tab; everyone
-        else only sees their own. employee_set is the reverse side of the
-        reports_to foreign key above (every employee whose manager is
-        this one).
+        True when at least one employee reports to this one. A manager may open
+        any employee's page; employee_set is the reverse side of reports_to
+        (every employee whose manager is this one).
         """
         return self.employee_set.exists()
 
     def _order_lines_frame(self):
-        """
-        Every line on the placed orders this employee handled
-        (Order.employee), as a pandas DataFrame -- see _lines_frame,
-        above the models, for the columns. The same pattern as
-        Customer._order_lines_frame; only the filter is different.
-        """
-        return _lines_frame(OrderDetail.objects.filter(
+        """Every line on the placed orders this employee handled, as a DataFrame (see lines_frame in charts.py)."""
+        return lines_frame(OrderDetail.objects.filter(
             order__employee=self, order__order_date__isnull=False
         ))
-
-    def annual_orders_plot(self):
-        """Bar chart of the revenue on this employee's orders, by year."""
-        frame = self._order_lines_frame()
-        if frame.empty:
-            return None
-        annual = frame.groupby("year", as_index=False)["revenue"].sum()
-        annual["year"] = annual["year"].astype(str)
-        return _bar_figure(
-            annual, "year", "revenue", "Revenue by year",
-            {"year": "Year", "revenue": "Revenue ($)"}, height=360,
-        )
 
     def revenue_years(self):
         """The years in which this employee handled placed orders, oldest first (for the year dropdown)."""
@@ -582,9 +311,9 @@ class Employee(models.Model):
         ]
         labels = {"label": axis, "revenue": "Revenue ($)"}
         if level == "year":
-            return _bar_figure(table, "label", "revenue", title, labels, height=height, hover=hover)
+            return bar_figure(table, "label", "revenue", title, labels, height=height, hover=hover)
         # Months run in time order, so a line reads better than bars.
-        return _line_figure(table, "label", "revenue", title, labels, height=height, hover=hover)
+        return line_figure(table, "label", "revenue", title, labels, height=height, hover=hover)
 
     def period_detail(self, key):
         """
@@ -593,8 +322,7 @@ class Employee(models.Model):
         revenue, orders and products (the five products with the most revenue in
         that period, each with units and revenue). For a whole year it also returns
         months_plot, that year's revenue by month; for a single month it is None.
-        The view has already checked
-        that key is a real period, so it is only split here.
+        The view has already checked that key is a real period.
         """
         year, _, month = key.partition("-")
         frame = self._order_lines_frame()
@@ -688,82 +416,70 @@ class Employee(models.Model):
             "average_order_diff": (row["average_order"] / team_average_order - 1) * 100,
         }
 
+    # What the team comparison chart's dropdown can compare: the key and its label.
+    TEAM_MEASURES = {
+        "revenue": "Revenue",
+        "orders": "Orders",
+        "customers": "Customers served",
+    }
+
     def team_comparison(self):
         """
-        This employee against the team on five measures, as a list of
-        dicts for the dashboard's "vs. the team" table and chart: label,
-        kind ("money" or "count", for formatting), you, team_average
-        (the mean across employees), best (the highest employee, nameless),
-        rank, employee_count, and you_index / best_index (each as a
-        percent of the team average, so the team average is always 100).
-        The index puts dollars, orders and customers on one scale, which
-        is what lets a single chart show all five. Returns [] when this
-        employee has no placed orders.
+        This employee against the team on the three TEAM_MEASURES, as a list of
+        dicts for the dashboard's comparison table and chart: measure, label, kind
+        ("money" or "count", for formatting), you, team_average (the mean across
+        employees), vs_average (you as a percent above or below that average), best
+        (the highest employee, nameless), rank and employee_count.
+        Returns [] when this employee has no placed orders.
         """
         frame = self._performance_frame()
         mine = frame[frame["employee_key"] == self.employee_id] if not frame.empty else frame
         if mine.empty:
             return []
         row = mine.iloc[0]
-        measures = [
-            ("Revenue", "revenue", "money"),
-            ("Orders", "orders", "count"),
-            ("Average order", "average_order", "money"),
-            ("Customers served", "customers", "count"),
-            ("Revenue per customer", "revenue_per_customer", "money"),
-        ]
         comparison = []
-        for label, column, kind in measures:
-            team_average = frame[column].mean()
+        for measure, label in self.TEAM_MEASURES.items():
+            team_average = frame[measure].mean()
             comparison.append({
+                "measure": measure,
                 "label": label,
-                "kind": kind,
-                "you": row[column],
+                "kind": "money" if measure == "revenue" else "count",
+                "you": row[measure],
                 "team_average": team_average,
-                "best": frame[column].max(),
-                "rank": int(row[f"{column}_rank"]),
+                "vs_average": (row[measure] / team_average - 1) * 100,
+                "best": frame[measure].max(),
+                "rank": int(row[f"{measure}_rank"]),
                 "employee_count": len(frame),
-                "you_index": row[column] / team_average * 100,
-                "best_index": frame[column].max() / team_average * 100,
             })
         return comparison
 
-    def team_comparison_plot(self, you_label="You"):
+    def team_comparison_plot(self, measure="revenue", you_label="You"):
         """
-        Grouped bar chart of team_comparison(): for each measure, three
-        bars -- this employee, the team average (always 100%) and the
-        best employee -- all as a percent of the team average. The best
-        bar is nameless. Hovering a bar shows the real figure behind the
-        percentage. Returns None when there is nothing to compare.
+        Bar chart for one measure (a TEAM_MEASURES key): this employee, the team
+        average and the best employee, in real units. The best bar is nameless.
+        This one is built with Plotly's graph_objects (go) rather than Express, so
+        each bar is added by hand. Returns None when there is nothing to compare.
         """
-        comparison = self.team_comparison()
-        if not comparison:
+        row = next((r for r in self.team_comparison() if r["measure"] == measure), None)
+        if row is None:
             return None
 
-        def show(row, key):
-            return f"${row[key]:,.0f}" if row["kind"] == "money" else f"{row[key]:,.0f}"
+        names = [you_label, "Team average", "Best"]
+        values = [row["you"], row["team_average"], row["best"]]
+        is_money = row["kind"] == "money"
+        text = [f"${v:,.0f}" if is_money else f"{v:,.0f}" for v in values]
 
-        measures = [row["label"].replace(" ", "<br>", 1) if len(row["label"]) > 8 else row["label"] for row in comparison]
-        series = [
-            (you_label, [r["you_index"] for r in comparison], [show(r, "you") for r in comparison], CHART_COLORS[0]),
-            ("Team average", [100] * len(comparison), [show(r, "team_average") for r in comparison], "#5f6b76"),
-            ("Best", [r["best_index"] for r in comparison], [show(r, "best") for r in comparison], CHART_COLORS[2]),
-        ]
-        figure = go.Figure()
-        for name, indexes, actuals, color in series:
-            figure.add_bar(
-                x=measures, y=indexes, name=name, marker_color=color, customdata=actuals,
-                text=[f"{v:.0f}%" if name != "Team average" else "" for v in indexes],
-                textposition="outside", cliponaxis=False, textfont_size=11,
-                hovertemplate="%{x}<br>" + name + ": %{customdata} (%{y:.0f}% of team average)<extra></extra>",
-            )
+        figure = go.Figure(go.Bar(
+            x=names, y=values, text=text, textposition="outside", cliponaxis=False,
+            marker_color=[CHART_COLORS[0], "#5f6b76", CHART_COLORS[2]],
+            hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
+        ))
         figure.update_layout(
-            title="Compared with the team (team average = 100%)", barmode="group", bargap=0.25,
-            yaxis_title="Percent of team average", height=340,
-            legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="right", x=1.0),
+            title=f"{row['label']}: {you_label} compared with the team", height=340,
+            yaxis_title="Revenue ($)" if is_money else row["label"],
         )
-        figure.update_yaxes(range=[0, max(r["best_index"] for r in comparison) * 1.25])
-        return _figure_html(figure)
+        figure.update_yaxes(range=[0, max(values) * 1.25])
+        return figure_html(figure)
 
     def leaderboard(self):
         """
@@ -791,14 +507,14 @@ class Employee(models.Model):
             for row in frame.itertuples()
         ]
 
-    def customer_revenue_plot(self, top=10):
+    def customer_revenue_plot(self, top=10, kind="bar"):
         """
-        Horizontal bar chart: revenue on this employee's orders by
-        customer, largest at the top. top=10 keeps the ten biggest
-        customers; top=None charts every customer. Each bar is labeled
-        with its dollars and the percentage of this employee's total
-        revenue (all customers, not just the ones charted) that the
-        customer generated.
+        Revenue on this employee's orders by customer, as kind="bar" (horizontal bars,
+        largest at the top; the default), "column" (vertical bars, largest first) or
+        "pie". top=10 keeps the ten biggest customers and top=None charts every
+        customer; each bar is labeled with its dollars and the percentage of this
+        employee's total revenue (all customers, not just the ones charted). A pie
+        shows each customer's share, the largest ten at most plus the rest as "Other".
         """
         frame = self._order_lines_frame()
         if frame.empty:
@@ -808,17 +524,25 @@ class Employee(models.Model):
             .sort_values("revenue")
         )
         total = by_customer["revenue"].sum()
+        if kind == "pie":
+            slices = top_with_other(by_customer, "customer_name", "revenue", min(top or 10, 10))
+            return pie_figure(slices, "customer_name", "revenue", "Share of revenue by customer",
+                              color_names=frame["customer_name"])
         if top:
             by_customer = by_customer.tail(top)
+        # Horizontal bars list the largest at the top; columns run largest first, left to right.
+        horizontal = kind != "column"
+        if not horizontal:
+            by_customer = by_customer.iloc[::-1]
         text = [f"${row.revenue:,.0f} ({row.revenue / total * 100:.1f}%)" for row in by_customer.itertuples()]
         # Same sizing rule as revenue_breakdown_plot, so the two charts sharing a dashboard row match.
         per_bar = 32 if len(by_customer) <= 12 else 24
-        return _bar_figure(
+        return bar_figure(
             by_customer, "customer_name", "revenue",
             f"Top {top} customers by revenue" if top else "Revenue by customer",
             {"customer_name": "Customer", "revenue": "Revenue ($)"},
-            color_names=frame["customer_name"], horizontal=True,
-            height=max(420, per_bar * len(by_customer) + 100), trend=False, text=text,
+            color_names=frame["customer_name"], horizontal=horizontal,
+            height=max(420, per_bar * len(by_customer) + 100) if horizontal else 420, trend=False, text=text,
         )
 
     # What the dashboard's "Revenue by" dropdown can group by: the key, the
@@ -829,31 +553,29 @@ class Employee(models.Model):
         "category": ("category", "product__category__category_name"),
     }
 
-    def revenue_breakdown_plot(self, by="supplier", all_orders=False, top=None):
+    def revenue_breakdown_plot(self, by="supplier", all_orders=False, top=None, kind="bar"):
         """
         Horizontal bar chart of revenue by supplier, product or category
-        (by = "supplier", "product" or "category"), largest at the top.
-        What it shows depends on who is looking (the view passes
+        (by = "supplier", "product" or "category"), largest at the top. What it
+        shows depends on who is looking (the view passes
         all_orders=viewer.is_manager):
 
-        all_orders=True (a manager): each group's revenue across every
-        placed order, whoever handled it. Each bar is labeled with its
-        dollars and its percentage of all revenue.
+        all_orders=True (a manager): each group's revenue across every placed
+        order, labeled with its dollars and its percentage of all revenue.
 
-        all_orders=False (any other employee): for each group, the share
-        of that group's total revenue that came from this employee's own
-        orders, as a percentage. Only the percentage is charted and
-        labeled, never the group's total, so a regular employee can see
-        how much of each supplier, product or category they brought in
-        without seeing what it earns overall.
+        all_orders=False (anyone else): the share of each group's revenue that came
+        from this employee's own orders, as a percentage. Only the percentage is
+        charted, never the group's total, so an employee sees what they brought in
+        without seeing what the group earns overall.
 
-        top limits the chart to the largest N bars (5, 10); None shows
-        every group. The bar colors are assigned from the full list of
-        groups, so a group keeps its color whichever top is chosen.
+        top limits the chart to the largest N bars; None shows every group. Colors
+        come from the full list of groups, so a group keeps its color whichever top
+        is chosen. The rows are grouped in the database with values()/annotate().
 
-        Each version groups OrderDetail rows with values()/annotate(),
-        then passes the result through a DataFrame to _bar_figure, like
-        the other charts.
+        kind is "bar" (horizontal, the default), "column" (vertical) or "pie". A pie is
+        for a manager only, because an employee's bars are shares of different totals
+        that don't add up to a whole; it shows each group's share of all revenue, the
+        largest ten at most plus the rest as "Other".
         """
         word, field = self.BREAKDOWNS[by]
         placed = OrderDetail.objects.filter(order__order_date__isnull=False)
@@ -888,11 +610,19 @@ class Employee(models.Model):
             value, title = "share", f"Your share of each {word}'s revenue (%)"
             labels = {"group_name": word.capitalize(), "share": f"Share of {word} revenue (%)"}
 
+        if kind == "pie" and all_orders:
+            slices = top_with_other(chart_data, "group_name", "revenue", min(top or 10, 10))
+            return pie_figure(slices, "group_name", "revenue", f"Share of revenue by {word}",
+                              color_names=totals["group_name"])
+
         if top:
             chart_data = chart_data.head(top)
             title = f"{title} -- top {top}"
-        # Plotly draws the first horizontal bar at the bottom; flip so the largest is on top.
-        chart_data = chart_data.iloc[::-1]
+        # Plotly draws the first horizontal bar at the bottom, so bars flip to put the largest
+        # on top; columns already run largest first, left to right.
+        horizontal = kind != "column"
+        if horizontal:
+            chart_data = chart_data.iloc[::-1]
 
         if all_orders:
             text = [f"${row.revenue:,.0f} ({row.percent:.1f}%)" for row in chart_data.itertuples()]
@@ -900,10 +630,10 @@ class Employee(models.Model):
             text = [f"{row.percent:.1f}%" for row in chart_data.itertuples()]
 
         per_bar = 32 if len(chart_data) <= 12 else 24
-        return _bar_figure(
+        return bar_figure(
             chart_data, "group_name", value, title, labels,
-            color_names=totals["group_name"], horizontal=True,
-            height=max(420, per_bar * len(chart_data) + 100), trend=False, text=text,
+            color_names=totals["group_name"], horizontal=horizontal,
+            height=max(420, per_bar * len(chart_data) + 100) if horizontal else 420, trend=False, text=text,
         )
 
     @classmethod
@@ -1001,22 +731,12 @@ class Order(models.Model):
 
     @property
     def order_total(self):
-        """
-        This order's total revenue -- every line item's own line_total
-        (OrderDetail.line_total) added together, not recomputed here.
-        order.customer is already a real field (the FK above), not a
-        property -- it needs no extra code to access.
-        """
+        """This order's total: every line item's line_total (OrderDetail.line_total) added together."""
         return sum(line.line_total for line in self.orderdetail_set.all())
 
     @property
     def formatted_ship_address(self):
-        """
-        This order's ship_address, ship_city, ship_region,
-        ship_postal_code, and ship_country joined into one line (blanks
-        skipped), instead of four separate fields -- used by
-        order_detail.html, same pattern as Customer.formatted_address.
-        """
+        """This order's ship_* address fields joined into one line, blanks skipped."""
         parts = [self.ship_address, self.ship_city, self.ship_region, self.ship_postal_code, self.ship_country]
         return ", ".join(part for part in parts if part)
 
@@ -1039,7 +759,7 @@ class Product(models.Model):
     reorder_level = models.SmallIntegerField(blank=True, null=True)
     discontinued = models.IntegerField()
     date_discontinued = models.DateField(blank=True, null=True)
-    
+
     # FK to Supplier (product.supplier.company_name, supplier.product_set.all()).
     supplier = models.ForeignKey('Supplier', models.SET_NULL, blank=True, null=True)
 
@@ -1048,29 +768,17 @@ class Product(models.Model):
 
     @property
     def is_discontinued(self):
-        """
-        discontinued is a plain 1/0 IntegerField, not a BooleanField -- this
-        maps it to a real bool so callers can write product.is_discontinued
-        instead of comparing product.discontinued to 1 by hand. A @property,
-        not a field, so it's computed fresh each access, no migration needed.
-        """
+        """discontinued is a plain 1/0 column; this maps it to a real bool. A @property is computed on each access, so it needs no migration."""
         return bool(self.discontinued)
 
     @classmethod
     def search(cls, product_name="", category_id="", show_all=False):
         """
-        Filters products by an optional product name and/or category,
-        returning every non-discontinued product by default. Used by
-        product_list (djtraders/views.py) to back its search form.
-
-        product_name uses "icontains" (a case-insensitive substring
-        match), same reasoning as Customer.search's company_name.
-        category_id uses an exact match, since its value comes from a
-        dropdown of categories already on record, not free text.
-        show_all=False filters out discontinued products (discontinued
-        is a plain 1/0 field, not is_discontinued -- that's a Python
-        property, not something the database can filter on); show_all=
-        True skips that filter, showing discontinued products too.
+        Filters products by an optional name (case-insensitive substring) and
+        category (exact, since it comes from a dropdown), for product_list's search
+        form. Discontinued products are left out unless show_all is True; the
+        filter uses the raw 1/0 column, because the database can't filter on the
+        is_discontinued property.
         """
         queryset = cls.objects.order_by("product_name")
         if product_name:
@@ -1086,35 +794,13 @@ class Product(models.Model):
 
     @property
     def total_revenue(self):
-        """
-        Total revenue this product has generated -- every order line it
-        appears on, each one's own line_total (OrderDetail.line_total)
-        added together. product.orderdetail_set is the reverse side of
-        OrderDetail.product's FK (every OrderDetail row for this product).
-        """
+        """Total revenue from this product: every line it appears on, each line_total added together (orderdetail_set is the reverse side of OrderDetail.product)."""
         return sum(line.line_total for line in self.orderdetail_set.all())
 
     @property
     def units_sold(self):
-        """
-        Total quantity of this product sold -- every order line's
-        quantity added together, across every order it's appeared on.
-        """
+        """Total quantity of this product sold, across every order line it appears on."""
         return sum(line.quantity for line in self.orderdetail_set.all())
-
-    @property
-    def first_sold(self):
-        """Date of the earliest placed order that includes this product (None if never sold)."""
-        line = (self.orderdetail_set.filter(order__order_date__isnull=False)
-                .order_by("order__order_date").first())
-        return line.order.order_date if line else None
-
-    @property
-    def last_sold(self):
-        """Date of the most recent placed order that includes this product (None if never sold)."""
-        line = (self.orderdetail_set.filter(order__order_date__isnull=False)
-                .order_by("-order__order_date").first())
-        return line.order.order_date if line else None
 
     class Meta:
         managed = False
@@ -1148,24 +834,15 @@ class Supplier(models.Model):
     homepage = models.TextField(blank=True, null=True)
 
     # region [WHY] a fixed shared password for suppliers
-    # The suppliers table has no password column, and this app's tables
-    # are unmanaged (Django will not alter them), so there is nowhere to
-    # store one per supplier. Every supplier logs in with this one shared
-    # value -- the same demo password the customers use -- picked from a
-    # dropdown, exactly like the customer login. A real app would store a
-    # hashed password per supplier; next year's version of the database
-    # adds that column.
+    # The suppliers table has no password column, and this app's tables are unmanaged,
+    # so there is nowhere to store one per supplier. Every supplier logs in with this
+    # one demo password. A real app would store a hashed password per supplier.
     # endregion
     SHARED_PASSWORD = "pass"
 
     @classmethod
     def authenticate(cls, supplier_id, password):
-        """
-        Looks up the supplier picked in the login dropdown and checks the
-        shared password. Returns the matching Supplier on success, None
-        otherwise (an unknown or non-numeric supplier_id counts as a
-        failure, not a crash).
-        """
+        """Checks a login: the supplier picked in the dropdown and the shared password. An unknown or non-numeric supplier_id is a failed login, not a crash."""
         try:
             supplier = cls.objects.filter(pk=int(supplier_id)).first()
         except (TypeError, ValueError):
@@ -1181,12 +858,7 @@ class Supplier(models.Model):
         return ", ".join(part for part in parts if part)
 
     def _placed_lines(self):
-        """
-        Every order line, on a placed order, for one of this supplier's
-        products. product__supplier=self follows OrderDetail -> Product
-        -> Supplier in one query; order_date__isnull=False leaves out an
-        unplaced cart, the same "placed" rule as everywhere else.
-        """
+        """Every line on a placed order for one of this supplier's products (product__supplier=self follows OrderDetail -> Product -> Supplier in one query)."""
         return OrderDetail.objects.filter(
             product__supplier=self, order__order_date__isnull=False
         )
@@ -1262,7 +934,6 @@ class Supplier(models.Model):
                 "orders": sold.get("orders", 0),
             })
         return sorted(rows, key=lambda row: row["revenue"], reverse=True)
-
 
     class Meta:
         managed = False

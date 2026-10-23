@@ -1,49 +1,19 @@
 <!--
-    Template for the order_build view (djtraders/views.py) -- the shopping
-    cart page. There is no Order row and no order_id at all until commit --
-    everything here comes from request.session["cart"] (a plain
-    product_id/{quantity, discount} dict, turned into display-ready lines
-    by _cart_lines, djtraders/views.py) and a fresh Customer/Product lookup,
-    not a database Order. Context here is customer/cart_lines/cart_total.
+    The shopping cart page (order_build view). No Order row exists until commit:
+    the cart is request.session["cart"], a plain {product_id: {quantity, discount}}
+    dict that _cart_lines (views/orders.py) turns into display-ready lines.
+    Context: customer, cart_lines, cart_total.
 
-    Cart Items render in a plain table (_order_line_row.html, one row per
-    line), not a DataTable -- rows are appended/replaced by JS as products
-    are added, which DataTables doesn't handle well once it has already
-    initialized a table's markup. Each row's own Remove button is a plain
-    POST to order_remove_line, dropping that line from the cart entirely.
-    The Add to Cart card is a partial template (_order_add_card.html),
-    included below for the first page load. Its job is only to fill the
-    Cart Items table: submitting it is an AJAX workflow -- AddOrderLineItem
-    (DjangoTraders.js) POSTs to order_add_line, which answers with JSON
-    holding the new table row and running total plus a freshly rendered,
-    empty copy of that same card. The page swaps both in place, with no
-    reload, so the card always starts over after a successful add (a
-    failed add changes nothing but the error message). The card's own
-    fields are Product, Quantity, and a Discount % -- capped at 10%
-    unless an employee is the one building this cart (OrderDetailForm's
-    own clean_discount_percent, djtraders/forms.py) -- and a Filter by
-    Category dropdown, the same filter product_list.html already offers
-    over its own table. Changing the dropdown swaps the card the same way:
-    order_add_card returns it rendered for that category, narrowing the
-    Product search, so the page never reloads. The Product field is a type-ahead (jQuery UI Autocomplete) over
-    product_search_json: only non-discontinued products are suggested,
-    those under LOW_STOCK_THRESHOLD units carry a "Low stock" badge, and
-    the chosen product's id lands in a hidden id_product field that
-    OrderDetailForm re-validates server-side. A requested quantity over
-    the selected product's own units_in_stock is blocked client-side as a
-    courtesy, and server-side (OrderDetailForm.clean()) for real;
-    order_commit re-checks and decrements stock again at commit time.
+    Cart Items is a plain table, not a DataTable, because JS adds and replaces
+    rows and DataTables does not handle that well. The Add to Cart card is its
+    own partial (_order_add_card.html); AddOrderLineItem (orders.js) submits it
+    by AJAX and swaps in the new row, the total and a fresh card.
 
-    The Place Order card is split into three sections -- Ship To,
-    Shipping Address, and Order Handling (employee and dates). Its ship_*
-    fields (OrderCommitForm's own ship_name/ship_address/ship_city/
-    ship_region/ship_postal_code/ship_country, djtraders/forms.py) are
-    prefilled from the customer's on-file address, but stay real,
-    editable fields -- this one order can ship somewhere else without
-    changing the customer's own record. Commit also requires picking an
-    employee (OrderCommitForm's employee field) as a business rule, not a
-    database one, and is a separate POST (order_commit) -- the only point
-    anything on this page is written to the database.
+    The Place Order card prefills its ship_* fields from the customer's address,
+    but they stay editable, so one order can ship elsewhere without changing the
+    customer's record. Commit (order_commit) is a separate POST and the only
+    point where anything here is written to the database. It requires an
+    employee, a business rule rather than a database one, and re-checks stock.
 -->
 {% extends "common/base.html" %}
 {% load humanize %}
@@ -55,7 +25,7 @@
         <div class="d-flex align-items-center">
             <h1 class="h4 mb-0">Your Cart -- {{ customer.company_name }}</h1>
         </div>
-        <div class="dt-link-wrap btn dt-btn-secondary-customer w3-hover-shadow">
+        <div class="dt-link-wrap btn dt-btn-secondary-customer dt-hover-shadow">
             <a href="{% url 'djtraders:customer_detail' customer.customer_id %}" title="Back to Customer">
                 <i class="fa-solid fa-arrow-left me-1"></i>
                 Back to Customer
@@ -65,16 +35,13 @@
 
     <div class="row">
         <div class="col-md-8">
-            <div class="card mb-3 border-0 shadow-sm">
-                <div class="card-header fw-bolder h5 d-flex justify-content-between align-items-center">
-                    <span>Cart Items</span>
-                    <!-- #region [WHY] Enhancement 4: no confirm step on Clear Cart -->
-                    <!-- Same one-click convention as each row's own Remove button --
-                         see order_clear_cart, views.py. -->
-                    <!-- #endregion -->
+            <div class="dt-card mb-3">
+                <div class="dt-card-header">
+                    <h5>Cart Items</h5>
+                    <!-- Clear Cart is one click with no confirm step, like each row's Remove button. -->
                     <form method="post" action="{% url 'djtraders:order_clear_cart' customer.customer_id %}" class="mb-0">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-sm dt-btn-secondary-customer w3-hover-shadow" title="Clear cart">
+                        <button type="submit" class="btn btn-sm dt-btn-secondary-customer dt-hover-shadow" title="Clear cart">
                             <i class="fa-solid fa-trash-can me-1"></i>Clear Cart
                         </button>
                     </form>
@@ -113,107 +80,92 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card mb-3 border-0 shadow-sm">
-                <div class="card-header fw-bolder h5">Place Order</div>
-                <div class="card-body">
-                    {% if commit_form.non_field_errors %}
-                        <div class="alert alert-danger">{{ commit_form.non_field_errors }}</div>
-                    {% endif %}
-                    {% if stock_errors %}
-                        <!-- Enhancement 5: order_commit's own re-check (views.py) refused
-                             to place this order -- the cart itself is untouched, so fixing
-                             a line's quantity (or removing it) and committing again works. -->
-                        <div class="alert alert-danger">
-                            {% for stock_error in stock_errors %}
-                                <div>{{ stock_error }}</div>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                    <form method="post" action="{% url 'djtraders:order_commit' customer.customer_id %}">
-                        {% csrf_token %}
-                        <!-- #region [WHY] Enhancement 6: ship-to fields, not a read-only address -->
-                        <!-- Prefilled from the customer's own on-file address (order_build's
-                             own initial= values, views.py) but a real, editable set of fields --
-                             this one order can ship somewhere else without touching the
-                             customer's own record. -->
-                        <!-- #endregion -->
-                        <!-- #region [CONCEPT] Place Order card: three sections -->
-                        <!-- Ship To (who receives it), Shipping Address (where it goes), and
-                             Order Handling (which employee, and the two dates). All three sit
-                             inside the one commit form, so a single POST still submits every
-                             field -- the sections are visual grouping only, divided by hr rules. -->
-                        <!-- #endregion -->
-                        <div class="mb-2 fw-bold">Ship To</div>
-                        <div class="mb-3">
-                            <label for="{{ commit_form.ship_name.id_for_label }}" class="form-label">Name</label>
-                            {{ commit_form.ship_name }}
-                            {% if commit_form.ship_name.errors %}
-                                <div class="text-danger small">{{ commit_form.ship_name.errors }}</div>
+            <div class="dt-card mb-3">
+                <h5 class="dt-card-title">Place Order</h5>
+                {% if commit_form.non_field_errors %}
+                    <div class="alert alert-danger">{{ commit_form.non_field_errors }}</div>
+                {% endif %}
+                {% if stock_errors %}
+                    <!-- order_commit's stock re-check refused the order; the cart is untouched, so fix a quantity (or remove a line) and commit again. -->
+                    <div class="alert alert-danger">
+                        {% for stock_error in stock_errors %}
+                            <div>{{ stock_error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <form method="post" action="{% url 'djtraders:order_commit' customer.customer_id %}">
+                    {% csrf_token %}
+                    <!-- Three sections (Ship To, Shipping Address, Order Handling) share one form, so a single POST submits every field. -->
+                    <div class="mb-2 fw-bold">Ship To</div>
+                    <div class="mb-3">
+                        <label for="{{ commit_form.ship_name.id_for_label }}" class="form-label">Name</label>
+                        {{ commit_form.ship_name }}
+                        {% if commit_form.ship_name.errors %}
+                            <div class="text-danger small">{{ commit_form.ship_name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <hr>
+                    <div class="mb-2 fw-bold">Shipping Address</div>
+                    <div class="mb-3">
+                        <label for="{{ commit_form.ship_address.id_for_label }}" class="form-label">Address</label>
+                        {{ commit_form.ship_address }}
+                        {% if commit_form.ship_address.errors %}
+                            <div class="text-danger small">{{ commit_form.ship_address.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ commit_form.ship_city.id_for_label }}" class="form-label">City</label>
+                            {{ commit_form.ship_city }}
+                            {% if commit_form.ship_city.errors %}
+                                <div class="text-danger small">{{ commit_form.ship_city.errors }}</div>
                             {% endif %}
                         </div>
-                        <hr>
-                        <div class="mb-2 fw-bold">Shipping Address</div>
-                        <div class="mb-3">
-                            <label for="{{ commit_form.ship_address.id_for_label }}" class="form-label">Address</label>
-                            {{ commit_form.ship_address }}
-                            {% if commit_form.ship_address.errors %}
-                                <div class="text-danger small">{{ commit_form.ship_address.errors }}</div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ commit_form.ship_region.id_for_label }}" class="form-label">Region</label>
+                            {{ commit_form.ship_region }}
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ commit_form.ship_postal_code.id_for_label }}" class="form-label">Postal Code</label>
+                            {{ commit_form.ship_postal_code }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ commit_form.ship_country.id_for_label }}" class="form-label">Country</label>
+                            {{ commit_form.ship_country }}
+                            {% if commit_form.ship_country.errors %}
+                                <div class="text-danger small">{{ commit_form.ship_country.errors }}</div>
                             {% endif %}
                         </div>
-                        <div class="row g-2">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ commit_form.ship_city.id_for_label }}" class="form-label">City</label>
-                                {{ commit_form.ship_city }}
-                                {% if commit_form.ship_city.errors %}
-                                    <div class="text-danger small">{{ commit_form.ship_city.errors }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ commit_form.ship_region.id_for_label }}" class="form-label">Region</label>
-                                {{ commit_form.ship_region }}
-                            </div>
-                        </div>
-                        <div class="row g-2">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ commit_form.ship_postal_code.id_for_label }}" class="form-label">Postal Code</label>
-                                {{ commit_form.ship_postal_code }}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ commit_form.ship_country.id_for_label }}" class="form-label">Country</label>
-                                {{ commit_form.ship_country }}
-                                {% if commit_form.ship_country.errors %}
-                                    <div class="text-danger small">{{ commit_form.ship_country.errors }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <hr>
-                        <div class="mb-2 fw-bold">Order Handling</div>
-                        <div class="mb-3">
-                            <label for="{{ commit_form.employee.id_for_label }}" class="form-label">Employee <span class="text-danger small">(required)</span></label>
-                            {{ commit_form.employee }}
-                            {% if commit_form.employee.errors %}
-                                <div class="text-danger small">{{ commit_form.employee.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ commit_form.required_date.id_for_label }}" class="form-label">Required Date</label>
-                            {{ commit_form.required_date }}
-                            {% if commit_form.required_date.errors %}
-                                <div class="text-danger small">{{ commit_form.required_date.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ commit_form.shipped_date.id_for_label }}" class="form-label">Ship-By Date</label>
-                            {{ commit_form.shipped_date }}
-                            {% if commit_form.shipped_date.errors %}
-                                <div class="text-danger small">{{ commit_form.shipped_date.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <button type="submit" class="btn dt-btn-primary-customer w3-hover-shadow w-100" title="Place this order">
-                            <i class="fa-solid fa-check me-1"></i>Commit Order
-                        </button>
-                    </form>
-                </div>
+                    </div>
+                    <hr>
+                    <div class="mb-2 fw-bold">Order Handling</div>
+                    <div class="mb-3">
+                        <label for="{{ commit_form.employee.id_for_label }}" class="form-label">Employee <span class="text-danger small">(required)</span></label>
+                        {{ commit_form.employee }}
+                        {% if commit_form.employee.errors %}
+                            <div class="text-danger small">{{ commit_form.employee.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ commit_form.required_date.id_for_label }}" class="form-label">Required Date</label>
+                        {{ commit_form.required_date }}
+                        {% if commit_form.required_date.errors %}
+                            <div class="text-danger small">{{ commit_form.required_date.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ commit_form.shipped_date.id_for_label }}" class="form-label">Ship-By Date</label>
+                        {{ commit_form.shipped_date }}
+                        {% if commit_form.shipped_date.errors %}
+                            <div class="text-danger small">{{ commit_form.shipped_date.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <button type="submit" class="btn dt-btn-primary-customer dt-hover-shadow w-100" title="Place this order">
+                        <i class="fa-solid fa-check me-1"></i>Commit Order
+                    </button>
+                </form>
             </div>
         </div>
     </div>

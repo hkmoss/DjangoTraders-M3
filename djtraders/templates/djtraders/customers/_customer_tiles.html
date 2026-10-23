@@ -1,0 +1,41 @@
+{% load humanize %}
+
+<div class="row g-3 mb-3">
+
+    <div class="col-6 col-lg-3">
+        <div class="dt-tile-slate h-100 p-3">
+            <div class="dt-stat-label">Total Revenue</div>
+            <div class="dt-stat-value">
+                ${{ stats.total_revenue|floatformat:2|intcomma }}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="dt-tile-order h-100 p-3">
+            <div class="dt-stat-label">Orders</div>
+            <div class="dt-stat-value">
+                {{ stats.order_count|intcomma }}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="dt-tile-steel h-100 p-3">
+            <div class="dt-stat-label">Average Order</div>
+            <div class="dt-stat-value">
+                ${{ stats.average_order|floatformat:2|intcomma }}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="dt-tile-sage h-100 p-3">
+            <div class="dt-stat-label">Last Order</div>
+            <div class="dt-stat-value">
+                {{ stats.last_order|date:"M j, Y" }}
+            </div>
+        </div>
+    </div>
+
+</div>

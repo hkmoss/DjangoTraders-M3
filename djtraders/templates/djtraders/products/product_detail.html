@@ -1,24 +1,11 @@
 <!--
-    Template for the product_detail view (djtraders/views.py). See
-    customer_list.html for the app-namespacing/base.html explanation.
-    "product" is a single Product instance, not a queryset.
-
-    Units Sold/Total Revenue come straight from Product's own
-    units_sold/total_revenue properties (djtraders/models.py), not
-    context values computed in the view.
-
-    Product Info, Supplier Info, and Sales Summary are plain <table>s
-    inside Bootstrap cards. DataTables only turns a table into a
-    sortable/searchable one when a template explicitly calls a
-    Make*DataTable() function on its id (see base.html), and only the
-    Orders table below does that, via MakeProductOrdersDataTable. Each
-    order's date cell carries a data-sort attribute (an ISO-formatted
-    value) so DataTables sorts by the real date, not the displayed text.
-
-    The Orders table is only shown to a logged-in employee or customer
-    -- current_employee/current_customer (djtraders/session_context.py)
-    are both None for an anonymous visitor, who sees Product/Supplier/
-    Sales Summary but not Orders.
+    The product_detail view's template; "product" is a single Product. Units
+    Sold and Total Revenue are Product properties (models.py), not values
+    computed in the view. Only the Orders table calls a Make*DataTable()
+    function (MakeOrdersDataTable); each order date cell carries a data-sort
+    attribute (an ISO date) so DataTables sorts by the real date, not the
+    displayed text. The Orders table is shown only to a logged-in employee or
+    customer (current_employee and current_customer are None for a visitor).
 -->
 {% extends "common/base.html" %}
 {% load humanize %}
@@ -35,7 +22,7 @@
                 {% endif %}
             </h1>
         </div>
-        <div class="dt-link-wrap btn dt-btn-secondary-supplier w3-hover-shadow">
+        <div class="dt-link-wrap btn dt-btn-secondary-supplier dt-hover-shadow">
             <a href="{% url 'djtraders:product_list' %}" title="Back to Products">
                 <i class="fa-solid fa-arrow-left me-1"></i>
                 Back to Products
@@ -44,8 +31,8 @@
     </div>
     <div class="row">
         <div class="col-md-5">
-            <div class="card mb-3 border-0 shadow-sm">
-                <div class="card-header fw-bolder h5">Product Info</div>
+            <div class="dt-card mb-3">
+                <h5 class="dt-card-title">Product Info</h5>
                 <table class="table mb-0">
                     <tbody>
                         <tr>
@@ -77,8 +64,8 @@
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card mb-3 border-0 shadow-sm">
-                <div class="card-header fw-bolder h5">Supplier Info</div>
+            <div class="dt-card mb-3">
+                <h5 class="dt-card-title">Supplier Info</h5>
                 {# Product.supplier is nullable (SET_NULL) -- a product can outlive its supplier record. #}
                 {% if product.supplier %}
                     <table class="table mb-0">
@@ -103,8 +90,8 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card mb-3 border-0 shadow-sm">
-                <div class="card-header fw-bolder h5">Sales Summary</div>
+            <div class="dt-card mb-3">
+                <h5 class="dt-card-title">Sales Summary</h5>
                 <table class="table mb-0">
                     <tbody>
                         <tr>
@@ -163,7 +150,7 @@
     {% if current_employee or current_customer %}
         <script>
             $(function() {
-                MakeProductOrdersDataTable('#product-orders-table');
+                MakeOrdersDataTable('#product-orders-table');
             });
         </script>
     {% endif %}

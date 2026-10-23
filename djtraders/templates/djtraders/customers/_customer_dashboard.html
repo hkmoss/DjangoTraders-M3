@@ -1,66 +1,14 @@
 {# Partial (no base.html) for the Dashboard tab -- customer_dashboard view. #}
-<div class="row g-3 mb-3">
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-                <div class="text-muted small">Orders</div>
-                <div class="fs-3 fw-bold">
-                    {{ stats.orders }}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-                <div class="text-muted small">Average Order</div>
-                <div class="fs-3 fw-bold">
-                    ${{ stats.average_order|floatformat:0 }}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-                <div class="text-muted small">Last Order</div>
-                <div class="fs-5 fw-bold">
-                    {{ stats.last_order|date:"M j, Y" }}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% if annual_plot %}
+    {% include "djtraders/customers/_customer_tiles.html" %}
     <div class="row g-3 mb-3">
         <div class="col-lg-6">
-            {# Chart 1: revenue by year. It arrives inside the page (Customer.annual_orders_plot). #}
-            <div class="card border-0 shadow-sm h-100"><div class="card-body">
-                {{ annual_plot|safe }}
-            </div></div>
+            {% include "djtraders/customers/_customer_revenue_by_year.html" %}
         </div>
         <div class="col-lg-6">
-            {# Chart 2: revenue by month for the chosen year. Choosing a year sends it to customer_monthly_chart, and ActivateYearDropdown (DjangoTraders.js) replaces #dashboard-monthly with the chart that comes back. #}
-            <div class="card border-0 shadow-sm h-100"><div class="card-body">
-                <nav class="navbar bg-light rounded px-3 py-2 mb-2">
-                    <div class="d-flex align-items-center gap-2">
-                        <label for="dashboard-year" class="fw-bold mb-0">Year</label>
-                        <select id="dashboard-year"
-                                class="form-select w-auto"
-                                data-url="{% url 'djtraders:customer_monthly_chart' customer.customer_id %}">
-                            {% for year in order_years %}
-                                <option value="{{ year }}"{% if forloop.first %} selected{% endif %}>{{ year }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </nav>
-                <div id="dashboard-monthly"></div>
-            </div></div>
+            {% include "djtraders/customers/_customer_revenue_by_month.html" %}
         </div>
     </div>
 {% else %}
-    <div class="text-muted">This customer has no placed orders to chart yet.</div>
+    <div class="dt-subtle">This customer has no placed orders to chart yet.</div>
 {% endif %}

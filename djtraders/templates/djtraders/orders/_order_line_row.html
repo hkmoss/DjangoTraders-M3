@@ -1,21 +1,12 @@
 <!--
-    One <tr> for order_build.html's line-items table -- rendered both
-    on the page's own initial GET (looped over order_lines) and by
-    order_add_line's AJAX response (render_to_string, djtraders/views.py),
-    so a line looks identical whether it was there on page load or just
-    added/bumped without a reload.
+    One <tr> for order_build.html's line-items table. It is rendered on the
+    page's first load and by order_add_line's AJAX response (views/orders.py), so a
+    line looks the same either way. customer_id is passed in alongside line,
+    for the Remove button's URL.
 
-    data-product-id on the <tr> is what DjangoTraders.js's
-    AddOrderLineItem looks for, to replace an existing row in place
-    instead of appending a duplicate one when a product already on the
-    order gets more added to it.
-
-    customer_id is passed in alongside line by both render paths above,
-    just for the Remove button's URL below.
-
-    Enhancement 3: line.discount_percent is line.discount (the 0.0-1.0
-    fraction OrderDetail.discount itself stores) already multiplied by
-    100 for display -- see _cart_lines, djtraders/views.py.
+    data-product-id on the <tr> is how AddOrderLineItem (orders.js) finds an
+    existing row to replace, instead of appending a duplicate. line.discount_percent
+    is the stored 0.0-1.0 discount times 100, for display (_cart_lines, views/orders.py).
 -->
 <tr data-product-id="{{ line.product.product_id }}">
     <td>{{ line.product.product_name }}</td>
@@ -24,14 +15,10 @@
     <td class="text-end">{{ line.discount_percent|floatformat:2 }}%</td>
     <td class="text-end">${{ line.line_total|floatformat:2 }}</td>
     <td class="text-center">
-        <!-- #region [WHY] Enhancement 1: no confirm step on Remove -->
-        <!-- A plain POST removes this line entirely, same single-click
-             convention as order_detail.html's Cancel Order button -- see
-             views.py's order_remove_line for why no confirm step is needed. -->
-        <!-- #endregion -->
+        <!-- Remove is one click with no confirm step, like order_detail.html's Cancel Order button (see order_remove_line in views/orders.py). -->
         <form method="post" action="{% url 'djtraders:order_remove_line' customer_id line.product.product_id %}">
             {% csrf_token %}
-            <button type="submit" class="btn btn-sm dt-btn-secondary-customer w3-hover-shadow" title="Remove from cart">
+            <button type="submit" class="btn btn-sm dt-btn-secondary-customer dt-hover-shadow" title="Remove from cart">
                 <i class="fa-solid fa-trash dt-icon-danger"></i>
             </button>
         </form>

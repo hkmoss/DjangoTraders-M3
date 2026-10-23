@@ -1,42 +1,20 @@
 <!--
-    Template for the customer_list view (djtraders/views.py).
+    The customer_list view's template. "customers" is a Customer queryset, so
+    fields are read by name (customer.company_name); each company name links
+    to customer_detail.
 
-    Lives at templates/djtraders/customer_list.html (APP_DIRS=True in
-    settings.py), namespaced by the "djtraders" folder so another app's
-    same-named template wouldn't collide with this one. Extends
-    common/base.html for the shared skeleton; only title/content filled
-    in below.
+    The search bar sends GET parameters back to this same view (customer_list in
+    views/customers.py and Customer.search in models.py do the filtering), and each
+    search_* value is passed back so a search stays visible in its results.
+    The Contact Title, City and Country dropdowns search on change. Search and
+    Reset are icon-only so the whole bar fits on one line.
 
-    "customers" is a Customer queryset (djtraders/models.py), so fields
-    are accessed by name (customer.company_name). Each row's company
-    name links to customer_detail via customer.customer_id.
-
-    The search bar (company name, contact name, contact title, city,
-    country) submits GET params back to this same view -- see views.py's
-    customer_list and models.py's Customer.search for the actual
-    filtering. Each search_* value is passed back from the view so a
-    search stays visible in its own results, and the heading above the
-    table shows customers.count, however many rows currently match.
-    Every field/button is sized and labeled to keep the whole bar on
-    one line: inputs and selects use Bootstrap's *-sm size classes,
-    placeholders are short ("Company" not "Company Name"), the outer
-    navbar is flex-nowrap (Bootstrap's .navbar wraps by default), and
-    the Search/Reset buttons stay icon-only with just a title attribute,
-    an explicit exception to CLAUDE.md's icon-then-text button
-    convention noted there for compact inline controls. The Contact
-    Title/City/Country dropdowns submit the search on change, so there's
-    no need to also click Search.
-
-    The Actions column's eye icon links to customer_detail, a second
-    way in besides the Company Name link. Edit/Delete icons in that
-    same column, and the New Customer button in the search bar, only
-    show when current_employee is set (djtraders/session_context.py);
-    Delete links to customer_edit with a ?confirm_delete=1 flag, which
-    that page reads to show its own in-page confirmation instead of a
-    browser confirm() dialog. Table id="customer-table" lets
-    MakeCustomersDataTable (DjangoTraders.js) target this table and
-    disable sorting on the Actions column, since it holds icons, not
-    sortable data.
+    In the Actions column the eye icon opens customer_detail. The Edit and
+    Delete icons and the New Customer button show only when current_employee is
+    set (session_context.py). Delete links to customer_edit with
+    ?confirm_delete=1, which shows an in-page confirmation. MakeListDataTable
+    (DjangoTraders.js) adds search, sorting and paging to #customer-table and
+    leaves the icon column unsortable.
 -->
 {% extends "common/base.html" %}
 
@@ -97,12 +75,12 @@
             {# "form" submits customer-search-form from outside it, so this button can sit with Reset instead of inside the input row. #}
             <button type="submit"
                     form="customer-search-form"
-                    class="btn dt-btn-primary-customer w3-hover-shadow"
+                    class="btn dt-btn-primary-customer dt-hover-shadow"
                     title="Search">
                 <i class="fa-solid fa-magnifying-glass fa-lg"></i>
             </button>
 
-            <div class="dt-link-wrap btn dt-btn-secondary-customer w3-hover-shadow">
+            <div class="dt-link-wrap btn dt-btn-secondary-customer dt-hover-shadow">
                 <a href="{% url 'djtraders:customer_list' %}" title="Reset search">
                     <i class="fa-solid fa-rotate-left fa-lg"></i>
 
@@ -110,7 +88,7 @@
             </div>
 
             {% if current_employee %}
-                <div class="dt-link-wrap btn dt-btn-primary-customer w3-hover-shadow">
+                <div class="dt-link-wrap btn dt-btn-primary-customer dt-hover-shadow">
                     <a href="{% url 'djtraders:customer_create' %}" title="New customer">
                         <i class="fa-solid fa-user-plus fa-lg"></i>
                     </a>
@@ -176,11 +154,8 @@
 
 {% block scripts %}
     <script>
-        {# MakeCustomersDataTable (static/common/js/DjangoTraders.js) also #}
-        {# disables sorting on the Actions column, since it holds an icon, #}
-        {# not real data. #}
         $(function() {
-            MakeCustomersDataTable('#customer-table');
+            MakeListDataTable('#customer-table');
         });
     </script>
 {% endblock %}

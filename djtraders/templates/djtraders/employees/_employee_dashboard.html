@@ -1,286 +1,41 @@
-{# Partial (no base.html) for the Employee Dashboard tab -- employee_dashboard view. Both charts cover the orders this employee handled. #}
-{% load humanize %}
+{# Partial (no base.html) for the Employee Dashboard tab -- employee_dashboard view. Everything here covers the orders this employee handled. #}
 {% if revenue_plot %}
-    {# Comparison tiles: the numbers come from Employee.performance(); the styling is the dt-stat-tile rules in DjangoTraders.css. #}
-    <div class="row g-3 mb-3">
-        <div class="col-6 col-lg-3">
-            <div class="dt-stat-tile dt-stat-tile-slate card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="dt-stat-label">Revenue Rank</div>
-                        <span class="dt-stat-icon"
-                              title="Where your total revenue ranks among all employees. Rank 1 is the highest revenue on the orders handled."><i class="fa-solid fa-ranking-star"></i></span>
-                    </div>
-                    <div class="dt-stat-value">{{ performance.revenue_rank }} <span class="fs-6 text-muted">of {{ performance.employee_count }}</span></div>
-                    <div class="dt-stat-note">
-                        {% if performance.colleagues_behind == 0 %}Top of the team{% else %}Ahead of {{ performance.colleagues_behind }} colleague{{ performance.colleagues_behind|pluralize }}{% endif %}
-                        &middot; 1 = most revenue
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="dt-stat-tile dt-stat-tile-order card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="dt-stat-label">Orders Rank</div>
-                        <span class="dt-stat-icon"
-                              title="Where the number of orders you handled ranks among all employees. Rank 1 is the most orders."><i class="fa-solid fa-receipt"></i></span>
-                    </div>
-                    <div class="dt-stat-value">{{ performance.orders_rank }} <span class="fs-6 text-muted">of {{ performance.employee_count }}</span></div>
-                    <div class="dt-stat-note">{{ performance.orders|intcomma }} orders handled &middot; 1 = most orders</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="dt-stat-tile dt-stat-tile-steel card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="dt-stat-label">Share of Company Revenue</div>
-                        <span class="dt-stat-icon"
-                              title="Your revenue as a percentage of all employees' combined revenue. The team average is 100% divided by the number of employees. The arrow points up when you are above the team average and down when you are below it."><i class="fa-solid fa-chart-pie"></i></span>
-                    </div>
-                    <div class="dt-stat-value">{{ performance.share|floatformat:1 }}%</div>
-                    <div class="dt-stat-note">
-                        <span class="fw-bold {% if performance.share >= performance.team_share %}text-success{% else %}text-danger{% endif %}">
-                            <i class="fa-solid {% if performance.share >= performance.team_share %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
-                        </span>
-                        Team average: {{ performance.team_share|floatformat:1 }}% each (1 of {{ performance.employee_count }})
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="dt-stat-tile dt-stat-tile-sage card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="dt-stat-label">Average Order</div>
-                        <span class="dt-stat-icon"
-                              title="Your revenue divided by your orders, compared with the average of all employees' average orders. Green means your orders are worth more than the team average."><i class="fa-solid fa-scale-balanced"></i></span>
-                    </div>
-                    <div class="dt-stat-value">${{ performance.average_order|floatformat:2|intcomma }}</div>
-                    <div class="dt-stat-note">
-                        <span class="fw-bold {% if performance.average_order_diff >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            <i class="fa-solid {% if performance.average_order_diff >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
-                            {{ performance.average_order_diff|floatformat:"1" }}%
-                        </span>
-                        vs team average
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {# First row: revenue over time and, for a manager, the leaderboard. Without a leaderboard the chart takes the full width. #}
+    {% include "djtraders/employees/_employee_tiles.html" %}
+    {# Row 1: revenue over time and, for a manager, the leaderboard. Without a leaderboard the chart takes the full width. #}
     <div class="row g-3 mb-3">
         <div class="{% if leaderboard %}col-lg-6{% else %}col-12{% endif %}">
-            {# Revenue over time: "View by" (Year or Month) and a Year dropdown change the chart and its table of periods; a Details button opens a modal for one period. Employee.revenue_over_time builds both. #}
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <nav id="revenue-controls" class="navbar bg-light rounded px-3 py-2 mb-2"
-                         data-url="{% url 'djtraders:employee_revenue_chart' employee.employee_id %}"
-                         data-detail-url="{% url 'djtraders:employee_period_detail' employee.employee_id %}">
-                        <div class="d-flex align-items-center gap-2" role="radiogroup" aria-labelledby="revenue-level-label">
-                            <span id="revenue-level-label" class="fw-bold">View by</span>
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input" type="radio" name="revenue-level" id="revenue-level-year" value="year" checked>
-                                <label class="form-check-label" for="revenue-level-year">Year</label>
-                            </div>
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input" type="radio" name="revenue-level" id="revenue-level-month" value="month">
-                                <label class="form-check-label" for="revenue-level-month">Month</label>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            {# At the Year level this reads "Details for" and a choice opens the modal; at the Month level it reads "Year" and filters the chart. ActivateRevenueOverTime switches the two. #}
-                            <label for="revenue-year" class="fw-bold mb-0">Details for</label>
-                            <select id="revenue-year" class="form-select w-auto">
-                                <option value="all" selected>Choose a year</option>
-                                {% for year in revenue_years %}
-                                    <option value="{{ year }}">{{ year }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </nav>
-                    <div id="dashboard-revenue">{% include "djtraders/employees/_employee_revenue_chart.html" %}</div>
-                </div>
-            </div>
+            {% include "djtraders/employees/_employee_revenue_over_time.html" %}
         </div>
         {% if leaderboard %}
             <div class="col-lg-6">
-                {# Leaderboard (managers only): every employee ranked by revenue, with names and dollars. #}
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <div class="h5 mb-1">Employee Leaderboard</div>
-                        <p class="text-muted small mb-1">Every employee ranked by revenue on the orders they handled. Visible to managers only.</p>
-                        <div class="table-responsive dt-leaderboard-scroll">
-                            <table id="leaderboard-table"
-                                   class="table table-sm table-hover align-middle small mb-0 w-100">
-                                <thead>
-                                    <tr>
-                                        <th>Rank</th>
-                                        <th>Employee</th>
-                                        <th class="text-end">Orders</th>
-                                        <th class="text-end">Revenue</th>
-                                        <th class="text-end">Average Order</th>
-                                        <th class="text-end">Share</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for row in leaderboard %}
-                                        <tr class="{% if row.is_self %}table-active fw-bold{% endif %}">
-                                            <td>{{ row.rank }}</td>
-                                            <td>{{ row.name }}</td>
-                                            <td class="text-end">{{ row.orders|intcomma }}</td>
-                                            <td class="text-end" data-order="{{ row.revenue|floatformat:2 }}">${{ row.revenue|floatformat:2|intcomma }}</td>
-                                            <td class="text-end" data-order="{{ row.average_order|floatformat:2 }}">${{ row.average_order|floatformat:2|intcomma }}</td>
-                                            <td class="text-end">{{ row.share|floatformat:1 }}%</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+                {% include "djtraders/employees/_employee_leaderboard.html" %}
             </div>
         {% endif %}
     </div>
-    {# Second row: the revenue breakdown ("Revenue by", or an employee's share of each group) and the top customers. #}
+    {# Row 2: revenue breakdown and top customers. #}
     <div class="row g-3 mb-3">
         <div class="col-lg-6">
-            {# Revenue breakdown: a manager sees every group's revenue; everyone else sees their own share of each group's revenue (percentages only). #}
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    {# A navbar as the chart's header: "Show Top" (radio buttons: 5, 10, All) at the start, "Revenue by" at the end. Bootstrap's .navbar spaces its two children to opposite ends. #}
-                    <nav class="navbar bg-light rounded px-3 py-2 mb-2">
-                        <div class="d-flex align-items-center gap-2"
-                             role="radiogroup"
-                             aria-labelledby="breakdown-top-label">
-                            <span id="breakdown-top-label" class="fw-bold">Show Top</span>
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input"
-                                       type="radio"
-                                       name="breakdown-top"
-                                       id="breakdown-top-5"
-                                       value="5">
-                                <label class="form-check-label" for="breakdown-top-5">5</label>
-                            </div>
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input"
-                                       type="radio"
-                                       name="breakdown-top"
-                                       id="breakdown-top-10"
-                                       value="10"
-                                       checked>
-                                <label class="form-check-label" for="breakdown-top-10">10</label>
-                            </div>
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input"
-                                       type="radio"
-                                       name="breakdown-top"
-                                       id="breakdown-top-all"
-                                       value="all">
-                                <label class="form-check-label" for="breakdown-top-all">All</label>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <label for="breakdown-by" class="fw-bold mb-0">Revenue by</label>
-                            <select id="breakdown-by"
-                                    class="form-select w-auto"
-                                    data-url="{% url 'djtraders:employee_breakdown_chart' employee.employee_id %}">
-                                <option value="supplier" selected>Supplier</option>
-                                <option value="product">Product</option>
-                                <option value="category">Category</option>
-                            </select>
-                        </div>
-                    </nav>
-                    <p class="text-muted small mb-0">
-                        {% if viewer_is_manager %}
-                            As a manager you see revenue across all orders; each bar shows its dollars and its percentage of all revenue.
-                        {% else %}
-                            Each bar is the percentage of that supplier's, product's or category's total revenue that came from your orders.
-                        {% endif %}
-                    </p>
-                    <div id="dashboard-breakdown">{{ breakdown_plot|safe }}</div>
-                </div>
-            </div>
+            {% include "djtraders/employees/_employee_revenue_breakdown.html" %}
         </div>
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    {# Top customers: "Show Top" radio buttons (5, 10, All) reload only the chart; employee_customer_chart checks the value. #}
-                    <nav id="customer-controls" class="navbar bg-light rounded px-3 py-2 mb-2"
-                         data-url="{% url 'djtraders:employee_customer_chart' employee.employee_id %}">
-                        <div class="d-flex align-items-center gap-2" role="radiogroup" aria-labelledby="customer-top-label">
-                            <span id="customer-top-label" class="fw-bold">Show Top</span>
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input" type="radio" name="customer-top" id="customer-top-5" value="5">
-                                <label class="form-check-label" for="customer-top-5">5</label>
-                            </div>
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input" type="radio" name="customer-top" id="customer-top-10" value="10" checked>
-                                <label class="form-check-label" for="customer-top-10">10</label>
-                            </div>
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input" type="radio" name="customer-top" id="customer-top-all" value="all">
-                                <label class="form-check-label" for="customer-top-all">All</label>
-                            </div>
-                        </div>
-                    </nav>
-                    <div id="dashboard-customers">{{ customer_plot|safe }}</div>
-                </div>
-            </div>
+            {% include "djtraders/employees/_employee_top_customers.html" %}
         </div>
     </div>
-    {# Compared with the team: the chart and table come from Employee.team_comparison(). Averages and a nameless best, so no colleague is identified. #}
+    {# Row 3: compared with the team, as a chart and a table. #}
     <div class="row g-3 mb-3">
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">{{ comparison_plot|safe }}</div>
-            </div>
+            {% include "djtraders/employees/_employee_team_comparison_chart.html" %}
         </div>
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="h5 mb-1">{{ you_label }} vs. the team</div>
-                    <p class="text-muted small">Team average is the mean across all employees. Best is the highest employee on that measure. Rank 1 is best.</p>
-                    <table class="table table-hover align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Measure</th>
-                                <th class="text-end">{{ you_label }}</th>
-                                <th class="text-end">Team average</th>
-                                <th class="text-end">Best</th>
-                                <th class="text-end">Rank</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in comparison %}
-                                <tr>
-                                    <td>{{ row.label }}</td>
-                                    {% if row.kind == "money" %}
-                                        <td class="text-end fw-bold">${{ row.you|floatformat:0|intcomma }}</td>
-                                        <td class="text-end">${{ row.team_average|floatformat:0|intcomma }}</td>
-                                        <td class="text-end">${{ row.best|floatformat:0|intcomma }}</td>
-                                    {% else %}
-                                        <td class="text-end fw-bold">{{ row.you|floatformat:0|intcomma }}</td>
-                                        <td class="text-end">{{ row.team_average|floatformat:0|intcomma }}</td>
-                                        <td class="text-end">{{ row.best|floatformat:0|intcomma }}</td>
-                                    {% endif %}
-                                    <td class="text-end">{{ row.rank }} of {{ row.employee_count }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            {% include "djtraders/employees/_employee_team_comparison_table.html" %}
         </div>
     </div>
-    {# The Details modal for the revenue-over-time table. Its contents are loaded by AJAX (employee_period_detail); ActivateRevenueOverTime moves it to <body> before showing it. #}
+    {# The Details modal for the revenue table; its contents load by AJAX (employee_period_detail). #}
     <div class="modal fade" id="revenue-modal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content" id="revenue-modal-content"></div>
         </div>
     </div>
 {% else %}
-    <p class="text-muted">No placed orders on record for {{ employee.first_name }} {{ employee.last_name }} yet.</p>
+    <div class="dt-subtle">No placed orders on record for {{ employee.first_name }} {{ employee.last_name }} yet.</div>
 {% endif %}

@@ -1,22 +1,11 @@
 <!--
-    Template for the product_list view (djtraders/views.py). See
-    customer_list.html for the app-namespacing/base.html explanation.
-
-    "products" is a Product queryset (djtraders/models.py), filtered by
-    the search bar above the table (product name, category, and a "show
-    all" flag that includes discontinued products) via Product.search.
-
-    Unit Price chains floatformat:2 (fixes 2 decimals) into humanize's
-    intcomma (adds thousands separators) for the project's $#,###.00
-    format, falling back to an em dash when unit_price is null.
-    Discontinued shows product.is_discontinued (a @property mapping the
-    raw 1/0 IntegerField to a bool) instead of the raw value. The
-    Actions column's eye icon links to product_detail; its sorting is
-    disabled since it holds an icon, not sortable data.
-
-    The table is activated via MakeProductsDataTable (DjangoTraders.js);
-    the Category dropdown submits the search on change, with no need to
-    also click Search.
+    The product_list view's template. "products" is a Product queryset filtered
+    by the search bar (product name, category, and a show-all flag that includes
+    discontinued products) through Product.search. Unit Price falls back to a
+    dash when null, and Discontinued shows the is_discontinued property instead
+    of the raw 1 or 0. The Actions column's eye icon links to product_detail.
+    MakeListDataTable (DjangoTraders.js) adds search, sorting and paging to the
+    table; the Category dropdown searches on change.
 -->
 {% extends "common/base.html" %}
 {% load humanize %}
@@ -62,12 +51,12 @@
             {# "form" submits product-search-form from outside it, so this button can sit with Reset instead of inside the input row. #}
             <button type="submit"
                     form="product-search-form"
-                    class="btn dt-btn-primary-supplier w3-hover-shadow"
+                    class="btn dt-btn-primary-supplier dt-hover-shadow"
                     title="Search">
                 <i class="fa-solid fa-magnifying-glass me-1"></i> Search
             </button>
 
-            <div class="dt-link-wrap btn dt-btn-secondary-supplier w3-hover-shadow">
+            <div class="dt-link-wrap btn dt-btn-secondary-supplier dt-hover-shadow">
                 <a href="{% url 'djtraders:product_list' %}" title="Reset search">
                     <i class="fa-solid fa-rotate-left me-1"></i>
                     Reset
@@ -110,9 +99,9 @@
 
 {% block scripts %}
     <script>
-        {# MakeProductsDataTable also disables sorting on the Actions column, since it holds an icon, not real data. #}
+        {# MakeListDataTable also disables sorting on the Actions column, since it holds an icon, not real data. #}
         $(function() {
-            MakeProductsDataTable('#product-table');
+            MakeListDataTable('#product-table');
         });
     </script>
 {% endblock %}

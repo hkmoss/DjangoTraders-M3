@@ -1,13 +1,11 @@
 <!--
-    Page shell for a single supplier (djtraders/views.py's supplier_detail):
-    the header plus a Bootstrap tab control with three tabs. Each tab's
-    content is its own partial template, fetched by AJAX the first time the
-    tab is shown (DjangoTraders.js, ActivatePageTabs/LoadPageTab):
-      Info            -> _supplier_info.html (views.supplier_info), the default tab
-      Order History   -> _supplier_orders.html (views.supplier_orders)
-      Product Revenue -> _supplier_products.html (views.supplier_products)
-    The same pattern as customer_detail.html. Students build a dashboard
-    tab on top of this page (Assignment 3).
+    Page shell for one supplier (supplier_detail view), built like
+    customer_detail.html: a tab control whose content is fetched by AJAX the
+    first time each tab is shown.
+      Info            -> _supplier_info.html, the default tab
+      Order History   -> _supplier_orders.html
+      Product Revenue -> _supplier_products.html
+    Students build a dashboard tab on top of this page (Assignment 3).
 -->
 {% extends "common/base.html" %}
 

@@ -15,13 +15,13 @@ what these two functions actually do here: read who's logged in back out
 of request.session.
 
 current_employee reads "current_user" (an employee_id) back out of
-request.session -- set by views.login_view on a successful login -- so
+request.session -- set by login_view (views/employees.py) on a successful login -- so
 base.html's navbar can show who's logged in without every view having
 to look it up and pass it in its own context by hand. current_customer
 is the same idea for the customer-facing login, reading "customer_id"
-(set by views.customer_login_view). Only one of the two is ever set at
+(set by customer_login_view in views/customers.py). Only one of the two is ever set at
 a time, since login_view/customer_login_view/supplier_login_view each clear all three keys on
-landing (djtraders/views.py).
+landing.
 """
 from .models import Customer, Employee, Supplier
 

@@ -1,23 +1,14 @@
 <!--
-    Template for the order_detail view (djtraders/views.py). Shows an
-    order's own info, its shipping details, its customer, and every
-    line item on it.
+    The order_detail view's template: an order's info, shipping details,
+    customer and line items. It follows the Order model in every direction:
+    order.customer, employee and ship_via are forward foreign keys, order_lines
+    (order.orderdetail_set) is the reverse relationship, and each line reaches
+    its Product and Supplier through the view's select_related.
 
-    Traverses the Order model in every direction: order.customer/
-    employee/ship_via are forward foreign keys, order_lines
-    (order.orderdetail_set) is a reverse relationship, and each line
-    reaches its own Product (and that product's Supplier) through
-    another forward foreign key, via the view's select_related.
-
-    Order Info, Shipping Info, Customer, and Line Items are all plain
-    <table>s inside Bootstrap cards. DataTables only turns a table into
-    a sortable/searchable one when a template explicitly calls a
-    Make*DataTable() function on its id (see base.html) -- only Line
-    Items does that here, via MakeOrderDetailsDataTable.
-
-    Cancel Order (Order Info's card footer) is gated by can_cancel_order
-    (views.py), shown only for a placed order from today, to that
-    order's own customer or an employee.
+    Only the Line Items table calls a Make*DataTable() function
+    (MakeOrderDetailsDataTable); the others stay plain tables. Cancel Order
+    (Order Info's footer) shows only when can_cancel_order is true (views/orders.py): a
+    placed order from today, for that order's customer or an employee.
 -->
 {% extends "common/base.html" %}
 {% load humanize %}
@@ -30,7 +21,7 @@
             <h1 class="h4 mb-0">Order #{{ order.order_id }}</h1>
         </div>
 
-        <div class="dt-link-wrap btn dt-btn-secondary-customer w3-hover-shadow">
+        <div class="dt-link-wrap btn dt-btn-secondary-customer dt-hover-shadow">
             {% if order.customer %}
                 <a href="{% url 'djtraders:customer_detail' order.customer.customer_id %}" title="Back to Customer">
                     <i class="fa-solid fa-arrow-left me-1"></i>
@@ -47,8 +38,8 @@
 
     <div class="row">
         <div class="col-md-6">
-            <div class="card mb-3 border-0 shadow-sm">
-                <div class="card-header fw-bolder h5">Order Info</div>
+            <div class="dt-card mb-3">
+                <h5 class="dt-card-title">Order Info</h5>
                 <table class="table mb-0">
                     <tbody>
                         <tr>
@@ -78,10 +69,10 @@
                     </tbody>
                 </table>
                 {% if can_cancel_order %}
-                    <div class="card-footer bg-white border-0 text-end">
+                    <div class="text-end">
                         <form method="post" action="{% url 'djtraders:order_delete' order.order_id %}">
                             {% csrf_token %}
-                            <button type="submit" class="btn dt-btn-secondary-customer w3-hover-shadow" title="Cancel this order">
+                            <button type="submit" class="btn dt-btn-secondary-customer dt-hover-shadow" title="Cancel this order">
                                 <i class="fa-solid fa-trash-can me-1"></i>
                                 Cancel Order
                             </button>
@@ -92,8 +83,8 @@
         </div>
 
         <div class="col-md-3">
-            <div class="card mb-3 border-0 shadow-sm">
-                <div class="card-header fw-bolder h5">Shipping Info</div>
+            <div class="dt-card mb-3">
+                <h5 class="dt-card-title">Shipping Info</h5>
                 <table class="table mb-0">
                     <tbody>
                         <tr>
@@ -110,8 +101,8 @@
         </div>
 
         <div class="col-md-3">
-            <div class="card mb-3 border-0 shadow-sm">
-                <div class="card-header fw-bolder h5">Customer</div>
+            <div class="dt-card mb-3">
+                <h5 class="dt-card-title">Customer</h5>
                 {# Order.customer is nullable (SET_NULL) -- an order can outlive its customer record. #}
                 {% if order.customer %}
                     <table class="table mb-0">
