@@ -175,6 +175,30 @@ class Customer(models.Model):
             "prior_ytd": prior_ytd,
         }
 
+    def revenue_by_category_plot(self):
+        """Bar chart of this customer's revenue by category."""
+        frame = self._order_lines_frame()
+        if frame.empty:
+            return None
+
+        by_category = (
+            frame.groupby("category_name", as_index=False)["revenue"]
+            .sum()
+            .sort_values("revenue", ascending=False)
+        )
+
+        return bar_figure(
+            by_category,
+            "category_name",
+            "revenue",
+            "Revenue by category",
+            {
+                "category_name": "Category",
+                "revenue": "Revenue ($)",
+            },
+             trend=False,
+        )
+
     @classmethod
     def search(cls, company_name="", contact_name="", contact_title="", city="", country=""):
         """
@@ -243,6 +267,9 @@ class Customer(models.Model):
     class Meta:
         managed = False
         db_table = 'customers'
+
+
+
 
 
 class Employee(models.Model):

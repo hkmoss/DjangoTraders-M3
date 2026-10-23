@@ -194,6 +194,7 @@ def customer_dashboard(request, customer_id):
         "annual_plot": customer.annual_orders_plot(),
         "order_years": customer.order_years(),
         "stats": customer.dashboard_stats(),
+        "revenue_by_category_plot": customer.revenue_by_category_plot(),    
     }
     return render(request, "djtraders/customers/_customer_dashboard.html", context)
 
