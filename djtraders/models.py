@@ -199,6 +199,26 @@ class Customer(models.Model):
              trend=False,
         )
 
+    def unit_share_by_category_plot(self):
+        """Pie chart of unit share by category."""
+        frame = self._order_lines_frame()
+        if frame.empty:
+            return None
+
+        by_category = (
+            frame.groupby("category_name", as_index=False)["quantity"]
+            .sum()
+            .sort_values("quantity", ascending=False)
+        )
+
+        return pie_figure(
+            by_category,
+            "category_name",
+            "quantity",
+            "Unit share by category",
+            color_names=by_category["category_name"],
+        )
+
     @classmethod
     def search(cls, company_name="", contact_name="", contact_title="", city="", country=""):
         """
@@ -606,6 +626,12 @@ class Employee(models.Model):
             color_names=frame["customer_name"], horizontal=horizontal,
             height=max(420, per_bar * len(by_customer) + 100) if horizontal else 420, trend=False, text=text,
         )
+
+
+
+
+
+
 
     # What the dashboard's "Revenue by" dropdown can group by: the key, the
     # singular word used in chart titles, and the OrderDetail field to group on.
