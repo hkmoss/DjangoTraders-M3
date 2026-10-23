@@ -13,7 +13,23 @@
                     ${{ stats.total_revenue|floatformat:2|intcomma }}
                 </div>
                 <div class="dt-stat-note">
-                    Revenue from completed orders
+                   
+
+                    <div class="dt-stat-note">
+                        {% if stats.revenue_yoy %}
+                            {% if stats.revenue_yoy >= 0 %}
+                                <i class="fa-solid fa-arrow-trend-up text-success"></i>
+                            {% else %}
+                                <i class="fa-solid fa-arrow-trend-down text-danger"></i>
+                            {% endif %}
+                            {{ stats.revenue_yoy|floatformat:"1" }}% vs last year YTD
+                        {% else %}
+                            No prior-year comparison
+                        {% endif %}
+                    </div>
+
+
+
                 </div>
             </div>
 

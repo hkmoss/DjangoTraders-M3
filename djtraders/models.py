@@ -130,7 +130,39 @@ class Customer(models.Model):
                 "order_count": 0,
                 "average_order": 0,
                 "last_order": None,
+                "revenue_yoy": None,
             }
+
+        last_order = frame["order_date"].max()
+
+        current_year = last_order.year
+        prior_year = current_year - 1
+
+        current_ytd = frame[
+            frame["order_date"].between(
+                pd.Timestamp(current_year, 1, 1),
+                last_order,
+            )
+        ]["revenue"].sum()
+
+        prior_cutoff = pd.Timestamp(
+            prior_year,
+            last_order.month,
+            last_order.day,
+        )
+
+        prior_ytd = frame[
+            frame["order_date"].between(
+                pd.Timestamp(prior_year, 1, 1),
+                prior_cutoff,
+            )
+        ]["revenue"].sum()
+
+        revenue_yoy = (
+            (current_ytd / prior_ytd - 1) * 100
+            if prior_ytd
+            else None
+        )
 
         return {
             "total_revenue": float(frame["revenue"].sum()),
@@ -138,7 +170,10 @@ class Customer(models.Model):
             "average_order": float(frame["revenue"].sum())
                             / frame["order_id"].nunique(),
             "last_order": frame["order_date"].max(),
-    }
+            "revenue_yoy": revenue_yoy,
+            "current_ytd": current_ytd,
+            "prior_ytd": prior_ytd,
+        }
 
     @classmethod
     def search(cls, company_name="", contact_name="", contact_title="", city="", country=""):
