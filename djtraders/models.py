@@ -219,6 +219,126 @@ class Customer(models.Model):
             color_names=by_category["category_name"],
         )
 
+    def top_products_revenue_plot(self, top=10, kind="bar"):
+        """
+        Revenue on this customer's orders by product.
+        """
+        frame = self._order_lines_frame()
+        if frame.empty:
+            return None
+
+        by_product = (
+            frame.groupby("product_name", as_index=False)["revenue"].sum()
+            .sort_values("revenue")
+        )
+
+        total = by_product["revenue"].sum()
+
+        if kind == "pie":
+            slices = top_with_other(
+                by_product,
+                "product_name",
+                "revenue",
+                min(top or 10, 10)
+            )
+            return pie_figure(
+                slices,
+                "product_name",
+                "revenue",
+                "Share of revenue by product",
+                color_names=frame["product_name"]
+            )
+
+        if top:
+            by_product = by_product.tail(top)
+
+        horizontal = kind != "column"
+        if not horizontal:
+            by_product = by_product.iloc[::-1]
+
+        text = [
+            f"${row.revenue:,.0f} ({row.revenue / total * 100:.1f}%)"
+            for row in by_product.itertuples()
+        ]
+
+        per_bar = 32 if len(by_product) <= 12 else 24
+
+        return bar_figure(
+            by_product,
+            "product_name",
+            "revenue",
+            f"Top {top} products by revenue" if top else "Revenue by product",
+            {
+                "product_name": "Product",
+                "revenue": "Revenue ($)",
+            },
+            color_names=frame["product_name"],
+            horizontal=horizontal,
+            height=max(420, per_bar * len(by_product) + 100)
+                if horizontal else 420,
+            trend=False,
+            text=text,
+        )
+
+    def top_products_units_plot(self, top=10, kind="bar"):
+        """ Units sold on this customer's orders by product. """
+        frame = self._order_lines_frame()
+        if frame.empty:
+            return None
+
+        by_product = (
+            frame.groupby("product_name", as_index=False)["quantity"].sum()
+            .sort_values("quantity")
+        )
+
+        total = by_product["quantity"].sum()
+
+        if kind == "pie":
+            slices = top_with_other(
+                by_product,
+                "product_name",
+                "quantity",
+                min(top or 10, 10)
+            )
+            return pie_figure(
+                slices,
+                "product_name",
+                "quantity",
+                "Share of units by product",
+                color_names=frame["product_name"]
+            )
+
+        if top:
+            by_product = by_product.tail(top)
+
+        horizontal = kind != "column"
+        if not horizontal:
+            by_product = by_product.iloc[::-1]
+
+        text = [
+            f"{row.quantity:,.0f} ({row.quantity / total * 100:.1f}%)"
+            for row in by_product.itertuples()
+        ]
+
+        per_bar = 32 if len(by_product) <= 12 else 24
+
+        return bar_figure(
+            by_product,
+            "product_name",
+            "quantity",
+            f"Top {top} products by units" if top else "Units by product",
+            {
+                "product_name": "Product",
+                "quantity": "Units",
+            },
+            color_names=frame["product_name"],
+            horizontal=horizontal,
+            height=max(420, per_bar * len(by_product) + 100)
+                if horizontal else 420,
+            trend=False,
+            text=text,
+        )
+
     @classmethod
     def search(cls, company_name="", contact_name="", contact_title="", city="", country=""):
         """

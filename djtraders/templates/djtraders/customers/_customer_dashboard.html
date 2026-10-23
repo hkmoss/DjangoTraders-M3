@@ -12,16 +12,23 @@
     </div>
 
     <div class="row g-3 mb-3">
-        <div class="col-12">
+        <div class="col-lg-6">
             {% include "djtraders/customers/_customer_revenue_by_category.html" %}
         </div>
-    </div>
-
-    <div class="row g-3 mb-3">
-        <div class="col-12">
+        <div class="col-lg-6">
             {% include "djtraders/customers/_customer_unit_share_by_category.html" %}
         </div>
     </div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-6">
+        {% include "djtraders/customers/_customer_top_products_revenue.html" %}
+    </div>
+
+    <div class="col-lg-6">
+        {% include "djtraders/customers/_customer_top_products_units.html" %}
+    </div>
+</div>
 
 {% else %}
     <div class="dt-subtle">This customer has no placed orders to chart yet.</div>
