@@ -1,6 +1,13 @@
-<div class="dt-card">
-    <div class="dt-card-header">
-        Top 10 Products by Revenue
+<div class="dt-card h-100">
+    <h5 class="dt-card-title">Top Products by Revenue</h5>
+
+    <nav id="top-products-revenue-controls"
+         class="dt-controls"
+         data-url="{% url 'djtraders:customer_top_products_revenue_chart' customer.customer_id %}">
+        {% include "djtraders/customers/_top_radios.html" with name="top-products-revenue-top" %}
+    </nav>
+
+    <div id="dashboard-top-products-revenue">
+        {{ top_products_revenue_plot|safe }}
     </div>
-    {{ top_products_revenue_plot|safe }}
 </div>

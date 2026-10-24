@@ -190,6 +190,16 @@ customer_monthly_chart_url = path(
     "customers/<str:customer_id>/monthly-chart/",
     customers.customer_monthly_chart, name="customer_monthly_chart",
 )
+
+# GET /djtraders/customers/<id>/top-products-revenue-chart/?top=10
+# -> customers.customer_top_products_revenue_chart
+customer_top_products_revenue_chart_url = path(
+    "customers/<str:customer_id>/top-products-revenue-chart/",
+    customers.customer_top_products_revenue_chart, name="customer_top_products_revenue_chart",
+)
+
+
+
 customer_info_url = path(
     "customers/<str:customer_id>/info/",
     customers.customer_info, name="customer_info",
@@ -259,6 +269,7 @@ urlpatterns = [
     order_delete_url,
     customer_dashboard_url,
     customer_monthly_chart_url,
+    customer_top_products_revenue_chart_url,
     customer_info_url,
     customer_orders_url,
     supplier_login_url,

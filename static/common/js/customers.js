@@ -85,3 +85,32 @@ function ActivateYearDropdown($pane) {
     $select.on("change", loadMonthly);
     loadMonthly();
 }
+
+/**
+ * Customer dashboard: the Top Products by Revenue "Show Top" radio buttons
+ * reload the chart in #dashboard-top-products-revenue.
+ * @param {jQuery} $pane - the tab pane that was just loaded
+*/
+function ActivateTopProductsRevenueControls($pane) {
+    const $controls = $pane.find("#top-products-revenue-controls");
+    if ($controls.length === 0) {
+        return;
+    }
+
+    const $top = $controls.find("input[name='top-products-revenue-top']");
+       function loadRevenueProducts() {
+        console.log("loadRevenueProducts fired");
+        $.get($controls.data("url"), {
+            top: $top.filter(":checked").val()
+        })
+        .done(function (html) {
+            $("#dashboard-top-products-revenue").html(html);
+        })
+        .fail(function () {
+            $("#dashboard-top-products-revenue").text("Could not load the chart.");
+        });
+    }
+
+    $top.on("change", loadRevenueProducts);
+}
+ 

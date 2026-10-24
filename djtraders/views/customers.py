@@ -221,6 +221,29 @@ def customer_monthly_chart(request, customer_id):
     return HttpResponse(plot or "<p>No orders on record.</p>")
 
 
+def customer_top_products_revenue_chart(request, customer_id):
+    """
+    The dashboard's Top Products by Revenue chart: reload for ?top= (5, 10 or all),
+    returning only the chart HTML.
+    """
+    if customer_tab_denied(request, customer_id):
+        return HttpResponse(status=403)
+
+    customer = get_object_or_404(Customer, pk=customer_id)
+
+    top = request.GET.get("top", "10")
+
+    if top not in ("5", "10", "all"):
+        return HttpResponse("Choose a valid top value.", status=400)
+
+    plot = customer.top_products_revenue_plot(
+        top=None if top == "all" else int(top)
+    )
+
+    return HttpResponse(plot or "<p>No orders on record.</p>")
+    
+
+
 def customer_info(request, customer_id):
     """
     Customer Info tab: the contact details and the Order Summary card, with its

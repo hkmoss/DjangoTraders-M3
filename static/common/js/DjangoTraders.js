@@ -112,6 +112,7 @@ function LoadPageTab($tabButton) {
             }
 
             ActivateYearDropdown($pane);
+            ActivateTopProductsRevenueControls($pane);
             ActivateBreakdownControls($pane);
             ActivateCustomerControls($pane);
             ActivateTeamComparison($pane);
