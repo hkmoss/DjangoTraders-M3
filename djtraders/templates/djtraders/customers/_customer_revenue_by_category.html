@@ -1,6 +1,18 @@
-<div class="dt-card">
-    <div class="dt-card-header">
-        Revenue by Category
+<div class="dt-card h-100">
+    <nav class="dt-controls">
+        <div class="dt-control-group">
+            <label for="category-revenue-year" class="fw-bold mb-0">Year</label>
+            <select id="category-revenue-year"
+                    class="form-select w-auto"
+                    data-url="{% url 'djtraders:customer_category_revenue_chart' customer.customer_id %}">
+                {% for year in order_years %}
+                    <option value="{{ year }}"{% if forloop.first %} selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </nav>
+
+    <div id="dashboard-category-revenue">
+        {{ revenue_by_category_plot|safe }}
     </div>
-    {{ revenue_by_category_plot|safe }}
 </div>

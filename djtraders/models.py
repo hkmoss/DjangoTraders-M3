@@ -175,9 +175,11 @@ class Customer(models.Model):
             "prior_ytd": prior_ytd,
         }
 
-    def revenue_by_category_plot(self):
+    def revenue_by_category_plot(self, year=None):
         """Bar chart of this customer's revenue by category."""
         frame = self._order_lines_frame()
+        if year:
+            frame = frame[frame["year"] == year]
         if frame.empty:
             return None
 
@@ -199,9 +201,11 @@ class Customer(models.Model):
              trend=False,
         )
 
-    def unit_share_by_category_plot(self):
+    def unit_share_by_category_plot(self, year=None):
         """Pie chart of unit share by category."""
         frame = self._order_lines_frame()
+        if year:
+            frame = frame[frame["year"] == year]
         if frame.empty:
             return None
 

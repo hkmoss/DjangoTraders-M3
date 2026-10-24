@@ -140,3 +140,22 @@ function ActivateTopProductsUnitsControls($pane) {
 
     $top.on("change", loadUnitsProducts);
 }
+
+function ActivateCategoryRevenueControls($pane) {
+    const $select = $pane.find("#category-revenue-year");
+    if ($select.length === 0) {
+        return;
+    }
+
+    function loadCategoryRevenue() {
+        $.get($select.data("url"), { year: $select.val() })
+            .done(function (html) {
+                $("#dashboard-category-revenue").html(html);
+            })
+            .fail(function () {
+                $("#dashboard-category-revenue").text("Could not load the chart.");
+            });
+    }
+
+    $select.on("change", loadCategoryRevenue);
+}

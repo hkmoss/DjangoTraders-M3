@@ -188,14 +188,16 @@ def customer_dashboard(request, customer_id):
     if customer_tab_denied(request, customer_id):
         return HttpResponse(status=403)
     customer = get_object_or_404(Customer, pk=customer_id)
+    years = customer.order_years()
+    selected_year = max(years) if years else None
 
     context = {
         "customer": customer,
         "annual_plot": customer.annual_orders_plot(),
-        "order_years": customer.order_years(),
+        "order_years": years,
         "stats": customer.dashboard_stats(),
-        "revenue_by_category_plot": customer.revenue_by_category_plot(),    
-        "unit_share_by_category_plot": customer.unit_share_by_category_plot(),
+        "revenue_by_category_plot": customer.revenue_by_category_plot(selected_year),
+        "unit_share_by_category_plot": customer.unit_share_by_category_plot(selected_year),
         "top_products_revenue_plot": customer.top_products_revenue_plot(),
         "top_products_units_plot": customer.top_products_units_plot(),
     }
@@ -218,6 +220,29 @@ def customer_monthly_chart(request, customer_id):
     if year not in customer.order_years():
         return HttpResponse("Choose a valid year.", status=400)
     plot = customer.orders_placed_plot(year)
+    return HttpResponse(plot or "<p>No orders on record.</p>")
+
+
+def customer_category_revenue_chart(request, customer_id):
+    """
+    The dashboard's Revenue by Category chart for ?year=,
+    returning only the chart HTML.
+    """
+    if customer_tab_denied(request, customer_id):
+        return HttpResponse(status=403)
+
+    customer = get_object_or_404(Customer, pk=customer_id)
+
+    try:
+        year = int(request.GET.get("year", ""))
+    except ValueError:
+        return HttpResponse("Choose a valid year.", status=400)
+
+    if year not in customer.order_years():
+        return HttpResponse("Choose a valid year.", status=400)
+
+    plot = customer.revenue_by_category_plot(year)
+
     return HttpResponse(plot or "<p>No orders on record.</p>")
 
 
