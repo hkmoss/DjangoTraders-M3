@@ -99,7 +99,6 @@ function ActivateTopProductsRevenueControls($pane) {
 
     const $top = $controls.find("input[name='top-products-revenue-top']");
        function loadRevenueProducts() {
-        console.log("loadRevenueProducts fired");
         $.get($controls.data("url"), {
             top: $top.filter(":checked").val()
         })
@@ -114,3 +113,30 @@ function ActivateTopProductsRevenueControls($pane) {
     $top.on("change", loadRevenueProducts);
 }
  
+/**
+ * Customer dashboard: the Top Products by Units "Show Top" radio buttons
+ * reload the chart in #dashboard-top-products-units.
+ * @param {jQuery} $pane - the tab pane that was just loaded
+ */
+function ActivateTopProductsUnitsControls($pane) {
+    const $controls = $pane.find("#top-products-units-controls");
+    if ($controls.length === 0) {
+    return;
+    }
+
+    const $top = $controls.find("input[name='top-products-units-top']");
+
+    function loadUnitsProducts() {
+        $.get($controls.data("url"), {
+            top: $top.filter(":checked").val()
+        })
+        .done(function (html) {
+            $("#dashboard-top-products-units").html(html);
+        })
+        .fail(function () {
+            $("#dashboard-top-products-units").text("Could not load the chart.");
+        });
+    }
+
+    $top.on("change", loadUnitsProducts);
+}

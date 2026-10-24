@@ -127,6 +127,7 @@ employee_period_detail_url = path(
 employee_info_url = path(
     "employees/<int:employee_id>/info/", employees.employee_info, name="employee_info"
 )
+
 employee_list_url = path(
     "employees/<int:employee_id>/list/", employees.employee_list, name="employee_list"
 )
@@ -198,7 +199,12 @@ customer_top_products_revenue_chart_url = path(
     customers.customer_top_products_revenue_chart, name="customer_top_products_revenue_chart",
 )
 
-
+# GET /djtraders/customers/<id>/top-products-units-chart/?top=10
+# -> customers.customer_top_products_units_chart
+customer_top_products_units_chart_url = path(
+    "customers/<str:customer_id>/top-products-units-chart/",
+    customers.customer_top_products_units_chart, name="customer_top_products_units_chart",
+)
 
 customer_info_url = path(
     "customers/<str:customer_id>/info/",
@@ -270,6 +276,7 @@ urlpatterns = [
     customer_dashboard_url,
     customer_monthly_chart_url,
     customer_top_products_revenue_chart_url,
+    customer_top_products_units_chart_url,
     customer_info_url,
     customer_orders_url,
     supplier_login_url,
