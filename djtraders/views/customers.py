@@ -310,6 +310,29 @@ def customer_top_products_units_chart(request, customer_id):
     return HttpResponse(plot or "<p>No orders on record.</p>")
 
 
+def customer_category_units_chart(request, customer_id):
+    """
+    The dashboard's Unit Share by Category chart for ?year=,
+    returning only the chart HTML.
+    """
+    if customer_tab_denied(request, customer_id):
+        return HttpResponse(status=403)
+
+    customer = get_object_or_404(Customer, pk=customer_id)
+
+    try:
+        year = int(request.GET.get("year", ""))
+    except ValueError:
+        return HttpResponse("Choose a valid year.", status=400)
+
+    if year not in customer.order_years():
+        return HttpResponse("Choose a valid year.", status=400)
+
+    plot = customer.unit_share_by_category_plot(year)
+
+    return HttpResponse(plot or "<p>No orders on record.</p>")
+
+
 def customer_info(request, customer_id):
     """
     Customer Info tab: the contact details and the Order Summary card, with its

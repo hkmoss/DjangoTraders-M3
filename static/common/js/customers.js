@@ -159,3 +159,22 @@ function ActivateCategoryRevenueControls($pane) {
 
     $select.on("change", loadCategoryRevenue);
 }
+
+function ActivateCategoryUnitsControls($pane) {
+    const $select = $pane.find("#category-units-year");
+    if ($select.length === 0) {
+        return;
+    }
+
+    function loadCategoryUnits() {
+        $.get($select.data("url"), { year: $select.val() })
+            .done(function (html) {
+                $("#dashboard-category-units").html(html);
+            })
+            .fail(function () {
+                $("#dashboard-category-units").text("Could not load the chart.");
+            });
+    }
+
+    $select.on("change", loadCategoryUnits);
+}

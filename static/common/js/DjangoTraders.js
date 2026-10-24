@@ -115,6 +115,7 @@ function LoadPageTab($tabButton) {
             ActivateTopProductsRevenueControls($pane);
             ActivateTopProductsUnitsControls($pane);
             ActivateCategoryRevenueControls($pane);
+            ActivateCategoryUnitsControls($pane);
             ActivateBreakdownControls($pane);
             ActivateCustomerControls($pane);
             ActivateTeamComparison($pane);

@@ -1,6 +1,18 @@
-<div class="dt-card">
-    <div class="dt-card-header">
-        Unit Share by Category
+<div class="dt-card h-100">
+    <nav class="dt-controls">
+        <div class="dt-control-group">
+            <label for="category-units-year" class="fw-bold mb-0">Year</label>
+            <select id="category-units-year"
+                    class="form-select w-auto"
+                    data-url="{% url 'djtraders:customer_category_units_chart' customer.customer_id %}">
+                {% for year in order_years %}
+                    <option value="{{ year }}"{% if forloop.first %} selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </nav>
+
+    <div id="dashboard-category-units">
+        {{ unit_share_by_category_plot|safe }}
     </div>
-    {{ unit_share_by_category_plot|safe }}
 </div>
