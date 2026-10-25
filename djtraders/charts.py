@@ -180,7 +180,7 @@ def top_with_other(data, category, value, count):
     return top
 
 
-def pie_figure(data, category, value, title, color_names=None, height=420):
+def pie_figure(data, category, value, title, color_names=None, height=420, prefix=""):
     """
     Builds one pie chart with Plotly Express: a slice per row of data, colored like
     the bar charts (a name keeps its color; "Other" is gray) and labeled with its
@@ -192,6 +192,7 @@ def pie_figure(data, category, value, title, color_names=None, height=420):
     figure = px.pie(data, names=category, values=value, title=title, height=height,
                     color=category, color_discrete_map=colors)
     figure.update_traces(sort=False, textinfo="percent",
-                         hovertemplate="<b>%{label}</b><br>$%{value:,.0f} (%{percent})<extra></extra>")
+                        hovertemplate=f"<b>%{{label}}</b><br>{prefix}%{{value:,.0f}} (%{{percent}})<extra></extra>")
+
     return figure_html(figure)
 

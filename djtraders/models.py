@@ -221,6 +221,7 @@ class Customer(models.Model):
             "quantity",
             "Unit share by category",
             color_names=by_category["category_name"],
+            prefix="",
         )
 
     def top_products_revenue_plot(self, top=10, kind="bar"):
@@ -250,7 +251,8 @@ class Customer(models.Model):
                 "product_name",
                 "revenue",
                 "Share of revenue by product",
-                color_names=frame["product_name"]
+                color_names=frame["product_name"],
+                prefix="$",
             )
 
         if top:
@@ -309,7 +311,8 @@ class Customer(models.Model):
                 "product_name",
                 "quantity",
                 "Share of units by product",
-                color_names=frame["product_name"]
+                color_names=frame["product_name"],
+                prefix="",
             )
 
         if top:
@@ -733,7 +736,7 @@ class Employee(models.Model):
         if kind == "pie":
             slices = top_with_other(by_customer, "customer_name", "revenue", min(top or 10, 10))
             return pie_figure(slices, "customer_name", "revenue", "Share of revenue by customer",
-                              color_names=frame["customer_name"])
+                              color_names=frame["customer_name"], prefix="$")
         if top:
             by_customer = by_customer.tail(top)
         # Horizontal bars list the largest at the top; columns run largest first, left to right.
@@ -825,7 +828,7 @@ class Employee(models.Model):
         if kind == "pie" and all_orders:
             slices = top_with_other(chart_data, "group_name", "revenue", min(top or 10, 10))
             return pie_figure(slices, "group_name", "revenue", f"Share of revenue by {word}",
-                              color_names=totals["group_name"])
+                              color_names=totals["group_name"], prefix="$",)
 
         if top:
             chart_data = chart_data.head(top)
