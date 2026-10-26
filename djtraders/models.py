@@ -690,7 +690,7 @@ class Employee(models.Model):
 
     def category_mix(self):
         """
-        Percentage of this employee's units sold in each product category.
+        Percentage of this employee's revenue in each product category.
         Returns [] when the employee has no placed orders.
         """
         details = (
@@ -700,27 +700,29 @@ class Employee(models.Model):
                 order__order_date__isnull=False,
             )
             .values(category=F("product__category__category_name"))
-            .annotate(units=Sum("quantity"))
+            .annotate(
+                revenue=Sum(Supplier._line_revenue()),
+            )
             .order_by("category")
         )
 
         if not details:
             return []
 
-        total_units = sum(row["units"] for row in details)
+        total_revenue = sum(row["revenue"] for row in details)
 
         return [
             {
                 "category": row["category"],
-                "units": row["units"],
-                "percent": row["units"] / total_units * 100,
+                "revenue": row["revenue"],
+                "percent": row["revenue"] / total_revenue * 100,
             }
             for row in details
         ]
 
     def category_mix_plot(self):
         """
-        Pie chart showing this employee's unit mix by product category.
+        Bar chart showing this employee's revenue mix by product category.
         Returns None when there is no data.
         """
         rows = self.category_mix()
@@ -728,13 +730,25 @@ class Employee(models.Model):
         if not rows:
             return None
 
-        return pie_figure(
-            pd.DataFrame(rows),
-            "category",
-            "percent",
-            "Employee Category Mix",
+        frame = pd.DataFrame(rows)
+
+        figure = go.Figure(go.Bar(
+            x=frame["category"],
+            y=frame["percent"],
+            text=[f"{p:.1f}%" for p in frame["percent"]],
+            textposition="outside",
+            cliponaxis=False,
+        ))
+
+        figure.update_layout(
+            title="Employee Category Mix",
+            height=340,
+            yaxis_title="Percent of Revenue",
         )
 
+        figure.update_yaxes(range=[0, max(frame["percent"]) * 1.25])
+
+        return figure_html(figure)
   
 
 
