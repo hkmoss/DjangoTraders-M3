@@ -100,6 +100,7 @@ def employee_dashboard(request, employee_id):
         "revenue_plot": employee.revenue_over_time(),
         "revenue_years": employee.revenue_years(),
         "customer_plot": employee.customer_revenue_plot(top=10),
+        "category_mix_plot": employee.category_mix_plot(),
         "breakdown_plot": employee.revenue_breakdown_plot("supplier", all_orders=viewer.is_manager, top=10),
     })
 

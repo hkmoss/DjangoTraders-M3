@@ -417,8 +417,6 @@ class Customer(models.Model):
 
 
 
-
-
 class Employee(models.Model):
     """A DjangoTraders employee. Has a self-referencing FK for its manager (reports_to)."""
     employee_id = models.SmallIntegerField(primary_key=True)
@@ -689,6 +687,56 @@ class Employee(models.Model):
         )
         figure.update_yaxes(range=[0, max(values) * 1.25])
         return figure_html(figure)
+
+    def category_mix(self):
+        """
+        Percentage of this employee's units sold in each product category.
+        Returns [] when the employee has no placed orders.
+        """
+        details = (
+            OrderDetail.objects
+            .filter(
+                order__employee=self,
+                order__order_date__isnull=False,
+            )
+            .values(category=F("product__category__category_name"))
+            .annotate(units=Sum("quantity"))
+            .order_by("category")
+        )
+
+        if not details:
+            return []
+
+        total_units = sum(row["units"] for row in details)
+
+        return [
+            {
+                "category": row["category"],
+                "units": row["units"],
+                "percent": row["units"] / total_units * 100,
+            }
+            for row in details
+        ]
+
+    def category_mix_plot(self):
+        """
+        Pie chart showing this employee's unit mix by product category.
+        Returns None when there is no data.
+        """
+        rows = self.category_mix()
+
+        if not rows:
+            return None
+
+        return pie_figure(
+            pd.DataFrame(rows),
+            "category",
+            "percent",
+            "Employee Category Mix",
+        )
+
+  
+
 
     def leaderboard(self):
         """
