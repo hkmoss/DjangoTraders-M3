@@ -720,33 +720,131 @@ class Employee(models.Model):
             for row in details
         ]
 
+    def team_category_mix(self):
+        """
+        Percentage of team revenue in each product category.
+        Team = all employees who have handled placed orders.
+        Returns [] when there are no placed orders.
+        """
+        details = (
+            OrderDetail.objects
+            .filter(
+                order__order_date__isnull=False,
+            )
+            .values(category=F("product__category__category_name"))
+            .annotate(
+                revenue=Sum(Supplier._line_revenue()),
+            )
+            .order_by("category")
+        )
+
+        if not details:
+            return []
+
+        total_revenue = sum(row["revenue"] for row in details)
+
+        return [
+            {
+                "category": row["category"],
+                "revenue": row["revenue"],
+                "percent": row["revenue"] / total_revenue * 100,
+            }
+            for row in details
+        ]
+
+
+    def team_category_mix(self):
+        """
+        Percentage of all employee revenue in each product category.
+        Returns [] when there are no placed orders.
+        """
+        details = (
+            OrderDetail.objects
+            .filter(
+                order__order_date__isnull=False,
+            )
+            .values(category=F("product__category__category_name"))
+            .annotate(
+                revenue=Sum(Supplier._line_revenue()),
+            )
+            .order_by("category")
+        )
+
+        if not details:
+            return []
+
+        total_revenue = sum(row["revenue"] for row in details)
+
+        return [
+            {
+                "category": row["category"],
+                "revenue": row["revenue"],
+                "percent": row["revenue"] / total_revenue * 100,
+            }
+            for row in details
+        ]
+
     def category_mix_plot(self):
         """
         Bar chart showing this employee's revenue mix by product category.
         Returns None when there is no data.
         """
-        rows = self.category_mix()
+        employee_rows = self.category_mix()
+        team_rows = self.team_category_mix()
 
-        if not rows:
+        if not employee_rows:
             return None
 
-        frame = pd.DataFrame(rows)
+        employee_frame = pd.DataFrame(employee_rows)
+        team_frame = pd.DataFrame(team_rows)
 
-        figure = go.Figure(go.Bar(
-            x=frame["category"],
-            y=frame["percent"],
-            text=[f"{p:.1f}%" for p in frame["percent"]],
+        figure = go.Figure()
+
+        figure.add_trace(go.Bar(
+            x=employee_frame["category"],
+            y=employee_frame["percent"],
+            customdata=employee_frame["revenue"],
+            name="Employee",
+            marker_color=CHART_COLORS[0],
+            text=[f"{p:.1f}%" for p in employee_frame["percent"]],
             textposition="outside",
-            cliponaxis=False,
+            hovertemplate=(
+                "<b>%{x}</b><br>"
+                "Revenue: $%{customdata:,.0f}<br>"
+                "Share: %{y:.1f}%"
+                "<extra></extra>"
+            ),
+        ))
+
+        figure.add_trace(go.Bar(
+            x=team_frame["category"],
+            y=team_frame["percent"],
+            customdata=team_frame["revenue"],
+            name="Team",
+            marker_color="#5f6b76",
+            text=[f"{p:.1f}%" for p in team_frame["percent"]],
+            textposition="outside",
+            hovertemplate=(
+                "<b>%{x}</b><br>"
+                "Revenue: $%{customdata:,.0f}<br>"
+                "Share: %{y:.1f}%"
+                "<extra></extra>"
+            ),
         ))
 
         figure.update_layout(
-            title="Employee Category Mix",
+            title="Revenue by Category: You Compared with the Team",
             height=340,
             yaxis_title="Percent of Revenue",
+            barmode="group",
         )
 
-        figure.update_yaxes(range=[0, max(frame["percent"]) * 1.25])
+        max_percent = max(
+            employee_frame["percent"].max(),
+            team_frame["percent"].max(),
+        )
+
+        figure.update_yaxes(range=[0, max_percent * 1.25])
 
         return figure_html(figure)
   
