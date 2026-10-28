@@ -18,7 +18,7 @@ import calendar
 import pandas as pd
 import plotly.graph_objects as go
 from django.db import models
-from django.db.models import Count, ExpressionWrapper, F, FloatField, Sum
+from django.db.models import Count, ExpressionWrapper, F, FloatField, Max, Sum
 
 from .charts import (
     CHART_COLORS,
@@ -833,7 +833,7 @@ class Employee(models.Model):
         ))
 
         figure.update_layout(
-            title="Revenue by Category: You Compared with the Team",
+            title="Revenue by Category: You Compared with the team",
             height=340,
             yaxis_title="Percent of Revenue",
             barmode="group",
@@ -1259,6 +1259,72 @@ class Supplier(models.Model):
             "revenue": totals["revenue"] or 0,
             "orders": totals["orders"],
         }
+
+    def performance(self):
+        """Summary values for the supplier dashboard tiles."""
+        summary = self.summary()
+
+        last_order = (
+            self._placed_lines()
+            .aggregate(last_order=Max("order__order_date"))
+            .get("last_order")
+        )
+
+        revenue_yoy = None
+        current_ytd = 0
+        prior_ytd = 0
+
+        if last_order:
+            frame = pd.DataFrame(
+                self._placed_lines()
+                .values("order__order_date")
+                .annotate(revenue=Sum(self._line_revenue()))
+            )
+
+            if not frame.empty:
+                frame["order__order_date"] = pd.to_datetime(
+                    frame["order__order_date"]
+                )
+
+                current_year = last_order.year
+                prior_year = current_year - 1
+
+                current_ytd = frame[
+                    frame["order__order_date"].between(
+                        pd.Timestamp(current_year, 1, 1),
+                        pd.Timestamp(last_order),
+                    )
+                ]["revenue"].sum()
+
+                prior_cutoff = pd.Timestamp(
+                    prior_year,
+                    last_order.month,
+                    last_order.day,
+                )
+
+                prior_ytd = frame[
+                    frame["order__order_date"].between(
+                        pd.Timestamp(prior_year, 1, 1),
+                        prior_cutoff,
+                    )
+                ]["revenue"].sum()
+
+                revenue_yoy = (
+                    (current_ytd / prior_ytd - 1) * 100
+                    if prior_ytd
+                    else None
+                )
+
+        return {
+            "total_revenue": summary["revenue"],
+            "orders": summary["orders"],
+            "units": summary["units"],
+            "last_order": last_order,
+            "revenue_yoy": revenue_yoy,
+            "current_ytd": current_ytd,
+            "prior_ytd": prior_ytd,
+        }
+
 
     def order_history(self):
         """

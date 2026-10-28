@@ -89,3 +89,13 @@ def supplier_products(request, supplier_id):
         "supplier": supplier,
         "rows": supplier.product_revenue(),
     })
+
+def supplier_dashboard(request, supplier_id):
+    """Dashboard tab."""
+    if supplier_access_denied(request, supplier_id):
+        return HttpResponse(status=403)
+    supplier = get_object_or_404(Supplier, pk=supplier_id)
+    return render(request, "djtraders/suppliers/_supplier_dashboard.html", {
+        "supplier": supplier,
+        "performance": supplier.performance(),
+    })

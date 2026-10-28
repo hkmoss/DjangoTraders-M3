@@ -18,11 +18,24 @@
         </div>
     </div>
 
+
+
     <ul class="nav nav-tabs gap-2 mb-3" id="supplier-tabs" role="tablist">
+
         <li class="nav-item" role="presentation">
-            <button class="nav-link dt-tab dt-tab-supplier active" id="info-tab" type="button" role="tab"
+            <button class="nav-link dt-tab dt-tab-dashboard active" id="dashboard-tab" type="button" role="tab"
+                    data-bs-toggle="tab" data-bs-target="#dashboard-pane"
+                    aria-controls="dashboard-pane" aria-selected="true"
+                    data-url="{% url 'djtraders:supplier_dashboard' supplier.supplier_id %}">
+                <i class="fa-solid fa-chart-column dt-tab-icon me-1"></i> Dashboard
+            </button>
+        </li>
+
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link dt-tab dt-tab-supplier" id="info-tab" type="button" role="tab"
                     data-bs-toggle="tab" data-bs-target="#info-pane"
-                    aria-controls="info-pane" aria-selected="true"
+                    aria-controls="info-pane" aria-selected="false"
                     data-url="{% url 'djtraders:supplier_info' supplier.supplier_id %}">
                 <i class="fa-solid fa-address-card dt-tab-icon me-1"></i> Info
             </button>
@@ -45,14 +58,16 @@
         </li>
     </ul>
 
-    <div class="tab-content">
-        <div class="tab-pane fade show active" id="info-pane" role="tabpanel"
-             aria-labelledby="info-tab" tabindex="0"></div>
-        <div class="tab-pane fade" id="orders-pane" role="tabpanel"
-             aria-labelledby="orders-tab" tabindex="0"></div>
-        <div class="tab-pane fade" id="products-pane" role="tabpanel"
-             aria-labelledby="products-tab" tabindex="0"></div>
-    </div>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="dashboard-pane" role="tabpanel"
+                    aria-labelledby="dashboard-tab" tabindex="0"></div>
+                <div class="tab-pane fade" id="info-pane" role="tabpanel"
+                    aria-labelledby="info-tab" tabindex="0"></div>
+                <div class="tab-pane fade" id="orders-pane" role="tabpanel"
+                    aria-labelledby="orders-tab" tabindex="0"></div>
+                <div class="tab-pane fade" id="products-pane" role="tabpanel"
+                    aria-labelledby="products-tab" tabindex="0"></div>
+            </div>
 
 {% endblock %}
 

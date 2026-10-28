@@ -21,7 +21,7 @@ from plotly.colors import qualitative
 # chart. With more bars than colors, the colors repeat. Any of Plotly's built-in
 # qualitative palettes works here; see https://plotly.com/python/colors/
 # endregion
-CHART_COLORS = qualitative.Set3
+CHART_COLORS = qualitative.Prism 
 
 
 def lines_frame(lines):

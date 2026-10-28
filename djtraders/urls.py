@@ -247,6 +247,11 @@ supplier_products_url = path(
     "suppliers/<int:supplier_id>/products/", suppliers.supplier_products, name="supplier_products"
 )
 
+supplier_dashboard_url = path(
+    "suppliers/<int:supplier_id>/dashboard/", suppliers.supplier_dashboard, name="supplier_dashboard"
+)
+
+
 # region [CONCEPT] why this list must be named "urlpatterns"
 # urlpatterns is the one name Django's URL resolver actually looks for in
 # this module -- it must be called exactly that (not e.g. "urls" or
@@ -297,6 +302,7 @@ urlpatterns = [
     customer_orders_url,
     supplier_login_url,
     supplier_logout_url,
+    supplier_dashboard_url,
     supplier_detail_url,
     supplier_info_url,
     supplier_orders_url,
