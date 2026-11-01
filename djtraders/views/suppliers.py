@@ -108,6 +108,7 @@ def supplier_dashboard(request, supplier_id):
         "monthly_plot": (supplier.revenue_by_month_plot(selected_year) if selected_year else None),
         "revenue_by_category_plot": supplier.revenue_by_category_plot(selected_year),
         "unit_share_by_category_plot": supplier.unit_share_by_category_plot(selected_year),
+        "top_products_revenue_plot": supplier.top_products_revenue_plot(),
     }
 
     return render(
@@ -177,5 +178,26 @@ def supplier_category_units_chart(request, supplier_id):
         return HttpResponse("Choose a valid year.", status=400)
 
     plot = supplier.unit_share_by_category_plot(year)
+
+    return HttpResponse(plot or "<p>No orders on record.</p>")
+
+def supplier_top_products_revenue_chart(request, supplier_id):
+    """
+    The dashboard's Top Products by Revenue chart: reload for ?top= (5, 10 or all),
+    returning only the chart HTML.
+    """
+    if supplier_access_denied(request, supplier_id):
+        return HttpResponse(status=403)
+
+    supplier = get_object_or_404(Supplier, pk=supplier_id)
+
+    top = request.GET.get("top", "10")
+
+    if top not in ("5", "10", "all"):
+        return HttpResponse("Choose a valid top value.", status=400)
+
+    plot = supplier.top_products_revenue_plot(
+        top=None if top == "all" else int(top)
+    )
 
     return HttpResponse(plot or "<p>No orders on record.</p>")
