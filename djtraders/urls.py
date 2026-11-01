@@ -254,8 +254,9 @@ supplier_dashboard_url = path(
 # GET /djtraders/suppliers/<id>/monthly-chart/?year=2025 -> suppliers.supplier_monthly_chart
 # (the chart the dashboard's year dropdown loads, as an HTML fragment)
 supplier_monthly_chart_url = path(
-    "suppliers/<str:supplier_id>/monthly-chart/",
-    suppliers.supplier_monthly_chart, name="supplier_monthly_chart",
+    "suppliers/<int:supplier_id>/monthly-chart/",
+    suppliers.supplier_monthly_chart,
+    name="supplier_monthly_chart",
 )
 
 

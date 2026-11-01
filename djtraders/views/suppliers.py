@@ -105,6 +105,10 @@ def supplier_dashboard(request, supplier_id):
         "performance": supplier.performance(),
         "annual_plot": supplier.annual_revenue_plot(),
         "order_years": years,
+        "monthly_plot": (
+            supplier.revenue_by_month_plot(selected_year)
+            if selected_year else None
+        ),
     }
 
     return render(
