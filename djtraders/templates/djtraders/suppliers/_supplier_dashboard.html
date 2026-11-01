@@ -1,1 +1,19 @@
-{% include "djtraders/suppliers/_supplier_tiles.html" %}
+{% if annual_plot %}
+
+    {% include "djtraders/suppliers/_supplier_tiles.html" %}
+
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            {% include "djtraders/suppliers/_supplier_revenue_over_time.html" %}
+        </div>
+
+        <div class="col-lg-6">
+            {% include "djtraders/suppliers/_supplier_revenue_by_month.html" %}
+        </div>
+    </div>
+
+{% else %}
+    <div class="dt-subtle">
+        This supplier has no placed orders to chart yet.
+    </div>
+{% endif %}

@@ -94,8 +94,43 @@ def supplier_dashboard(request, supplier_id):
     """Dashboard tab."""
     if supplier_access_denied(request, supplier_id):
         return HttpResponse(status=403)
+
     supplier = get_object_or_404(Supplier, pk=supplier_id)
-    return render(request, "djtraders/suppliers/_supplier_dashboard.html", {
+
+    years = supplier.order_years()
+    selected_year = max(years) if years else None
+
+    context = {
         "supplier": supplier,
         "performance": supplier.performance(),
-    })
+        "annual_plot": supplier.annual_revenue_plot(),
+        "order_years": years,
+    }
+
+    return render(
+        request,
+        "djtraders/suppliers/_supplier_dashboard.html",
+        context,
+    )
+
+def supplier_monthly_chart(request, supplier_id):
+    """
+    The dashboard's year dropdown: Supplier.revenue_by_month_plot for ?year=,
+    as just the chart HTML that fills #dashboard-monthly.
+    """
+    if supplier_access_denied(request, supplier_id):
+        return HttpResponse(status=403)
+
+    supplier = get_object_or_404(Supplier, pk=supplier_id)
+
+    try:
+        year = int(request.GET.get("year", ""))
+    except ValueError:
+        return HttpResponse("Choose a valid year.", status=400)
+
+    if year not in supplier.order_years():
+        return HttpResponse("Choose a valid year.", status=400)
+
+    plot = supplier.revenue_by_month_plot(year)
+
+    return HttpResponse(plot or "<p>No orders on record.</p>")

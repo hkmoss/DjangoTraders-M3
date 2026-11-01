@@ -23,7 +23,7 @@
     <ul class="nav nav-tabs gap-2 mb-3" id="supplier-tabs" role="tablist">
 
         <li class="nav-item" role="presentation">
-            <button class="nav-link dt-tab dt-tab-dashboard active" id="dashboard-tab" type="button" role="tab"
+            <button class="nav-link dt-tab dt-tab-employee active" id="dashboard-tab" type="button" role="tab"
                     data-bs-toggle="tab" data-bs-target="#dashboard-pane"
                     aria-controls="dashboard-pane" aria-selected="true"
                     data-url="{% url 'djtraders:supplier_dashboard' supplier.supplier_id %}">
@@ -72,6 +72,7 @@
 {% endblock %}
 
 {% block scripts %}
+    <script src="https://cdn.plot.ly/plotly-4.1.1.min.js" charset="utf-8"></script>
     <script>
         $(function() {
             ActivatePageTabs('#supplier-tabs');

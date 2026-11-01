@@ -1238,6 +1238,17 @@ class Supplier(models.Model):
             product__supplier=self, order__order_date__isnull=False
         )
 
+    def _placed_lines_frame(self):
+        """
+        Every line on this supplier's placed orders as a DataFrame.
+        """
+        return lines_frame(
+            OrderDetail.objects.filter(
+                product__supplier=self,
+                order__order_date__isnull=False,
+            )
+        )
+
     @staticmethod
     def _line_revenue():
         """The database-side version of OrderDetail.line_total, for Sum(): unit_price * quantity * (1 - discount)."""
@@ -1325,6 +1336,13 @@ class Supplier(models.Model):
             "prior_ytd": prior_ytd,
         }
 
+    def order_years(self):
+        """Distinct years this supplier has orders in, newest first."""
+        years = (
+            self._placed_lines()
+            .dates("order__order_date", "year")
+        )
+        return sorted((d.year for d in years), reverse=True)
 
     def order_history(self):
         """
@@ -1375,6 +1393,37 @@ class Supplier(models.Model):
                 "orders": sold.get("orders", 0),
             })
         return sorted(rows, key=lambda row: row["revenue"], reverse=True)
+
+    def annual_revenue_plot(self):
+        """Bar chart of this supplier's total revenue for each year."""
+        frame = self._placed_lines_frame()
+        if frame.empty:
+            return None
+        annual = frame.groupby("year", as_index=False)["revenue"].sum()
+        annual["year"] = annual["year"].astype(str)
+        return bar_figure(
+            annual, "year", "revenue", "Revenue by year",
+            {"year": "Year", "revenue": "Revenue ($)"},
+        )
+    
+    def revenue_by_month_plot(self, year):
+        """
+        Bar chart of this supplier's revenue for each month of one year.
+        """
+        frame = self._placed_lines_frame()
+        frame = frame[frame["year"] == year]
+        if frame.empty:
+            return None
+        monthly = (
+            frame.groupby("month")["revenue"].sum()
+            .reindex(range(1, 13), fill_value=0)
+            .reset_index()
+        )
+        monthly["month"] = [calendar.month_abbr[m] for m in monthly["month"]]
+        return bar_figure(
+            monthly, "month", "revenue", f"Revenue by month, {year}",
+            {"month": "Month", "revenue": "Revenue ($)"},
+        )
 
     class Meta:
         managed = False
