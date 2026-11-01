@@ -1425,6 +1425,33 @@ class Supplier(models.Model):
             {"month": "Month", "revenue": "Revenue ($)"},
         )
 
+
+    def revenue_by_category_plot(self, year=None):
+        """Bar chart of this supplier's revenue by category."""
+        frame = self._placed_lines_frame()
+        if year:
+            frame = frame[frame["year"] == year]
+        if frame.empty:
+            return None
+
+        by_category = (
+            frame.groupby("category_name", as_index=False)["revenue"]
+            .sum()
+            .sort_values("revenue", ascending=False)
+        )
+
+        return bar_figure(
+            by_category,
+            "category_name",
+            "revenue",
+            "Revenue by category",
+            {
+                "category_name": "Category",
+                "revenue": "Revenue ($)",
+            },
+             trend=False,
+        )
+
     class Meta:
         managed = False
         db_table = 'suppliers'

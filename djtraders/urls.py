@@ -254,12 +254,12 @@ supplier_dashboard_url = path(
 # GET /djtraders/suppliers/<id>/monthly-chart/?year=2025 -> suppliers.supplier_monthly_chart
 # (the chart the dashboard's year dropdown loads, as an HTML fragment)
 supplier_monthly_chart_url = path(
-    "suppliers/<int:supplier_id>/monthly-chart/",
-    suppliers.supplier_monthly_chart,
-    name="supplier_monthly_chart",
+    "suppliers/<int:supplier_id>/monthly-chart/", suppliers.supplier_monthly_chart, name="supplier_monthly_chart",
 )
 
-
+supplier_category_revenue_chart_url = path(
+    "suppliers/<int:supplier_id>/category-revenue-chart/", suppliers.supplier_category_revenue_chart, name="supplier_category_revenue_chart",
+)
 
 # region [CONCEPT] why this list must be named "urlpatterns"
 # urlpatterns is the one name Django's URL resolver actually looks for in
@@ -317,4 +317,5 @@ urlpatterns = [
     supplier_orders_url,
     supplier_products_url,
     supplier_monthly_chart_url,
+    supplier_category_revenue_chart_url,    
 ]
