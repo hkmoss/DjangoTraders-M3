@@ -1452,6 +1452,32 @@ class Supplier(models.Model):
              trend=False,
         )
 
+    def unit_share_by_category_plot(self, year=None):
+        """Pie chart of unit share by category."""
+        frame = self._placed_lines_frame()
+
+        if year:
+            frame = frame[frame["year"] == year]
+
+        if frame.empty:
+            return None
+
+        by_category = (
+            frame.groupby("category_name", as_index=False)["quantity"]
+            .sum()
+            .sort_values("quantity", ascending=False)
+        )
+
+        return pie_figure(
+            by_category,
+            "category_name",
+            "quantity",
+            "Unit share by category",
+            color_names=by_category["category_name"],
+            prefix="",
+        )
+
+
     class Meta:
         managed = False
         db_table = 'suppliers'
