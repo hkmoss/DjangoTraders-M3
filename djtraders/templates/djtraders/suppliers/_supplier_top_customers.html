@@ -1,0 +1,17 @@
+<div class="dt-card h-100">
+    <h5 class="dt-card-title">Top Customers by Revenue</h5>
+
+    <nav id="customer-controls"
+         class="dt-controls"
+         data-url="{% url 'djtraders:supplier_top_customers_chart' supplier.supplier_id %}">
+
+        {% include "djtraders/customers/_top_radios.html" with name="customer-top" %}
+
+        {% include "djtraders/employees/_chart_kind.html" with name="customer-kind" allow_pie=True %}
+
+    </nav>
+
+    <div id="dashboard-customers">
+        {{ top_customers_plot|safe }}
+    </div>
+</div>

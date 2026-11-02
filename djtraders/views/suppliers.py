@@ -109,6 +109,8 @@ def supplier_dashboard(request, supplier_id):
         "revenue_by_category_plot": supplier.revenue_by_category_plot(selected_year),
         "unit_share_by_category_plot": supplier.unit_share_by_category_plot(selected_year),
         "top_products_revenue_plot": supplier.top_products_revenue_plot(),
+        "top_products_units_plot": supplier.top_products_units_plot(),
+        "top_customers_plot": supplier.top_customers_revenue_plot(top=10), 
     }
 
     return render(
@@ -201,3 +203,49 @@ def supplier_top_products_revenue_chart(request, supplier_id):
     )
 
     return HttpResponse(plot or "<p>No orders on record.</p>")
+
+def supplier_top_products_units_chart(request, supplier_id):
+    """
+    The dashboard's Top Products by Units chart: reload for ?top= (5, 10 or all),
+    returning only the chart HTML.
+    """
+    if supplier_access_denied(request, supplier_id):
+        return HttpResponse(status=403)
+
+    supplier = get_object_or_404(Supplier, pk=supplier_id)
+
+    top = request.GET.get("top", "10")
+
+    if top not in ("5", "10", "all"):
+        return HttpResponse("Choose a valid top value.", status=400)
+
+    plot = supplier.top_products_units_plot(
+        top=None if top == "all" else int(top)
+    )
+
+    return HttpResponse(plot or "<p>No orders on record.</p>")
+
+def supplier_top_customers_chart(request, supplier_id):
+    """
+    The top-customers chart for ?top= (5, 10 or all) and ?kind= (bar, column or pie), as
+    just the chart HTML.
+    """
+    if supplier_access_denied(request, supplier_id):
+        return HttpResponse(status=403)
+
+    supplier = get_object_or_404(Supplier, pk=supplier_id)
+
+    top = request.GET.get("top", "10")
+    kind = request.GET.get("kind", "bar")
+
+    if top not in ("5", "10", "all") or kind not in ("bar", "column", "pie"):
+        return HttpResponse("Choose a valid top and chart.", status=400)
+
+    plot = supplier.top_customers_revenue_plot(
+        top=None if top == "all" else int(top),
+        kind=kind,
+    )
+
+    return HttpResponse(plot or "<p>No orders on record.</p>")
+
+

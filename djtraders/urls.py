@@ -269,6 +269,14 @@ supplier_top_products_revenue_chart_url = path("suppliers/<int:supplier_id>/top-
     suppliers.supplier_top_products_revenue_chart, name="supplier_top_products_revenue_chart",
 )
 
+supplier_top_products_units_chart_url = path(
+    "suppliers/<int:supplier_id>/top-products-units-chart/", suppliers.supplier_top_products_units_chart, name="supplier_top_products_units_chart",
+)
+
+supplier_top_customers_chart_url = path(
+    "suppliers/<int:supplier_id>/top-customers-chart/", suppliers.supplier_top_customers_chart, name="supplier_top_customers_chart",
+)
+
 
 # region [CONCEPT] why this list must be named "urlpatterns"
 # urlpatterns is the one name Django's URL resolver actually looks for in
@@ -329,4 +337,6 @@ urlpatterns = [
     supplier_category_revenue_chart_url,   
     supplier_category_units_chart_url,
     supplier_top_products_revenue_chart_url,
+    supplier_top_products_units_chart_url,
+    supplier_top_customers_chart_url,
 ]

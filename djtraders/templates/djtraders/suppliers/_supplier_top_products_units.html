@@ -1,0 +1,13 @@
+<div class="dt-card h-100">
+    <h5 class="dt-card-title">Top Products by Units</h5>
+
+    <nav id="top-products-units-controls"
+         class="dt-controls"
+         data-url="{% url 'djtraders:supplier_top_products_units_chart' supplier.supplier_id %}">
+        {% include "djtraders/customers/_top_radios.html" with name="top-products-units-top" %}
+    </nav>
+
+    <div id="dashboard-top-products-units">
+        {{ top_products_units_plot|safe }}
+    </div>
+</div>
