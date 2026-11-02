@@ -889,7 +889,7 @@ class Employee(models.Model):
         by_customer = (
             frame.groupby("customer_name", as_index=False)["revenue"].sum()
             .sort_values("revenue")
-        )
+        )     
         total = by_customer["revenue"].sum()
         if kind == "pie":
             slices = top_with_other(by_customer, "customer_name", "revenue", min(top or 10, 10))
@@ -1602,8 +1602,11 @@ class Supplier(models.Model):
             return None
 
         by_customer = (
-            frame.groupby("customer_name", as_index=False)["revenue"]
-            .sum()
+            frame.groupby("customer_name", as_index=False)
+            .agg(
+                revenue=("revenue", "sum"),
+                orders=("order_id", "nunique"),
+            )
             .sort_values("revenue")
         )
 
@@ -1637,7 +1640,7 @@ class Supplier(models.Model):
             by_customer = by_customer.iloc[::-1]
 
         text = [
-            f"${row.revenue:,.0f} ({row.revenue / total * 100:.1f}%)"
+            f"{row.orders} orders ({row.revenue / total * 100:.1f}%)"
             for row in by_customer.itertuples()
         ]
 
