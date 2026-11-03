@@ -111,6 +111,7 @@ def supplier_dashboard(request, supplier_id):
         "top_products_revenue_plot": supplier.top_products_revenue_plot(),
         "top_products_units_plot": supplier.top_products_units_plot(),
         "top_customers_plot": supplier.top_customers_revenue_plot(top=10), 
+        "supplier_comparison_plot": supplier.supplier_comparison_plot(),   
     }
 
     return render(
