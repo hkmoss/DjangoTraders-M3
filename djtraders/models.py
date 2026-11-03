@@ -720,39 +720,6 @@ class Employee(models.Model):
 
     def team_category_mix(self):
         """
-        Percentage of team revenue in each product category.
-        Team = all employees who have handled placed orders.
-        Returns [] when there are no placed orders.
-        """
-        details = (
-            OrderDetail.objects
-            .filter(
-                order__order_date__isnull=False,
-            )
-            .values(category=F("product__category__category_name"))
-            .annotate(
-                revenue=Sum(Supplier._line_revenue()),
-            )
-            .order_by("category")
-        )
-
-        if not details:
-            return []
-
-        total_revenue = sum(row["revenue"] for row in details)
-
-        return [
-            {
-                "category": row["category"],
-                "revenue": row["revenue"],
-                "percent": row["revenue"] / total_revenue * 100,
-            }
-            for row in details
-        ]
-
-
-    def team_category_mix(self):
-        """
         Percentage of all employee revenue in each product category.
         Returns [] when there are no placed orders.
         """
@@ -846,8 +813,6 @@ class Employee(models.Model):
 
         return figure_html(figure)
   
-
-
     def leaderboard(self):
         """
         Every employee ranked by revenue, as a list of dicts for the
@@ -1222,7 +1187,7 @@ class Supplier(models.Model):
     @classmethod
     def _comparison_frame(cls):
         """
-        One row per supplier with placed-order revenue.
+        One row per supplier with revenue, orders, and customers.
         """
         rows = (
             OrderDetail.objects.filter(
@@ -1231,6 +1196,8 @@ class Supplier(models.Model):
             .values(supplier_key=F("product__supplier_id"))
             .annotate(
                 revenue=Sum(cls._line_revenue()),
+                orders=Count("order", distinct=True),
+                customers=Count("order__customer", distinct=True),
             )
         )
 
@@ -1239,6 +1206,13 @@ class Supplier(models.Model):
             return frame
 
         frame["supplier_key"] = frame["supplier_key"].astype(int)
+
+        for measure in ("revenue", "orders", "customers"):
+            frame[f"{measure}_rank"] = (
+                frame[measure]
+                .rank(ascending=False, method="min")
+            )
+
         return frame
 
     @property
@@ -1781,37 +1755,66 @@ class Supplier(models.Model):
             text=text,
         )
 
+    #What the supplier comparison table can compare.
+    SUPPLIER_MEASURES = {
+        "revenue": "Revenue",
+        "orders": "Orders",
+        "customers": "Customers",
+    }
+
     def supplier_comparison(self):
         """
-        This supplier compared with all suppliers:
-        its revenue, the average supplier revenue,
-        and the best supplier revenue (unnamed).
+        This supplier compared with all suppliers on the
+        SUPPLIER_MEASURES.
         """
         frame = self._comparison_frame()
 
         if frame.empty:
-            return None
+            return []
 
         mine = frame[frame["supplier_key"] == self.supplier_id]
 
         if mine.empty:
-            return None
+            return []
 
         row = mine.iloc[0]
 
-        return {
-            "you": row["revenue"],
-            "average": frame["revenue"].mean(),
-            "best": frame["revenue"].max(),
-        }
+        comparison = []
 
+        for measure, label in self.SUPPLIER_MEASURES.items():
+            average = frame[measure].mean()
+
+            comparison.append({
+                "measure": measure,
+                "label": label,
+                "kind": "money" if measure == "revenue" else "count",
+                "you": row[measure],
+                "average": average,
+                "vs_average": (
+                    (row[measure] / average - 1) * 100
+                    if average else 0
+                ),
+                "best": frame[measure].max(),
+                "rank": int(row[f"{measure}_rank"]),
+                "supplier_count": len(frame),
+            })
+
+        return comparison
 
     def supplier_comparison_plot(self):
         """
         Revenue comparison: this supplier,
         average supplier, and best supplier.
         """
-        comparison = self.supplier_comparison()
+        rows = self.supplier_comparison()
+
+        if not rows:
+            return None
+
+        comparison = next(
+            (row for row in rows if row["measure"] == "revenue"),
+            None,
+        )
 
         if comparison is None:
             return None

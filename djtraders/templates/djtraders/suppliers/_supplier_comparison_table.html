@@ -1,0 +1,64 @@
+{% load humanize %}
+
+<div class="dt-card h-100">
+    <h5 class="dt-card-title">Supplier Comparison Table</h5>
+
+    <div class="dt-subtle">
+        This supplier compared with all suppliers. Supplier average is
+        the mean across all suppliers. Best is the highest supplier on
+        that measure. Rank 1 is best.
+    </div>
+
+    <table class="table table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Measure</th>
+                <th class="text-end">You</th>
+                <th class="text-end">Supplier Average</th>
+                <th class="text-end">Vs. Average</th>
+                <th class="text-end">Best</th>
+                <th class="text-end">Rank</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for row in supplier_comparison %}
+                <tr>
+                    <td>{{ row.label }}</td>
+
+                    {% if row.kind == "money" %}
+                        <td class="text-end fw-bold">
+                            ${{ row.you|floatformat:0|intcomma }}
+                        </td>
+                        <td class="text-end">
+                            ${{ row.average|floatformat:0|intcomma }}
+                        </td>
+                    {% else %}
+                        <td class="text-end fw-bold">
+                            {{ row.you|floatformat:0|intcomma }}
+                        </td>
+                        <td class="text-end">
+                            {{ row.average|floatformat:0|intcomma }}
+                        </td>
+                    {% endif %}
+
+                    <td class="text-end">
+                        <span class="{% if row.vs_average >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            <i class="fa-solid {% if row.vs_average >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
+                            {{ row.vs_average|floatformat:1 }}%
+                        </span>
+                    </td>
+
+                    <td class="text-end">
+                        {% if row.kind == "money" %}${% endif %}
+                        {{ row.best|floatformat:0|intcomma }}
+                    </td>
+
+                    <td class="text-end">
+                        {{ row.rank }} of {{ row.supplier_count }}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
