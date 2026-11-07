@@ -346,6 +346,109 @@ class Customer(models.Model):
             text=text,
         )
 
+    def discount_by_category_frame(self, year=None):
+        """
+        Customer purchases summarized by category, including
+        discount dollars and discount percentage.
+        """
+        frame = self._order_lines_frame()
+
+        if frame.empty:
+            return frame
+
+        if year:
+            frame = frame[frame["year"] == int(year)]
+
+        frame["discount_dollars"] = (
+            frame["revenue"] * frame["discount"]
+        )
+
+        frame = (
+            frame.groupby("category_name", as_index=False)
+            .agg(
+                revenue=("revenue", "sum"),
+                discount_dollars=("discount_dollars", "sum"),
+            )
+        )
+
+        frame["discount_percent"] = (
+            100 * frame["discount_dollars"] / frame["revenue"]
+        )
+
+        return frame
+
+    def discount_by_category_plot(
+            self, year=None, metric="dollars", top=10, kind="bar"):
+        """Discount savings by category."""
+        frame = self.discount_by_category_frame(year)
+
+        if frame.empty:
+            return None
+
+        if metric == "percent":
+            value_column = "discount_percent"
+            title = "Discount Percentage by Category"
+            axis_title = "Discount %"
+            prefix = ""
+        else:
+            value_column = "discount_dollars"
+            title = "Discount Savings by Category"
+            axis_title = "Discount Dollars"
+            prefix = "$"
+
+        by_category = frame.sort_values(value_column)
+
+        if kind == "pie":
+            slices = top_with_other(
+                by_category,
+                "category_name",
+                value_column,
+                min(top or 10, 10)
+            )
+
+            return pie_figure(
+                slices,
+                "category_name",
+                value_column,
+                title,
+                color_names=frame["category_name"],
+                prefix=prefix,
+            )
+
+        if top:
+            by_category = by_category.tail(top)
+
+        horizontal = kind != "column"
+
+        if not horizontal:
+            by_category = by_category.iloc[::-1]
+
+        text = [
+            f"{value:,.1f}%"
+            if metric == "percent"
+            else f"${value:,.0f}"
+            for value in by_category[value_column]
+        ]
+
+        per_bar = 32 if len(by_category) <= 12 else 24
+
+        return bar_figure(
+            by_category,
+            "category_name",
+            value_column,
+            title,
+            labels={
+                "category_name": "Category",
+                value_column: axis_title,
+            },
+            color_names=frame["category_name"],
+            horizontal=horizontal,
+            height=max(420, per_bar * len(by_category) + 100)
+                if horizontal else 420,
+            trend=False,
+            text=text,
+        )
+
     @classmethod
     def search(cls, company_name="", contact_name="", contact_title="", city="", country=""):
         """
@@ -1942,7 +2045,7 @@ class Supplier(models.Model):
         )
 
         figure.update_layout(
-            title="Revenue:You compared with all suppliers",
+            title="Revenue: You compared with all suppliers",
             height=340,
             yaxis_title="Revenue ($)",
         )

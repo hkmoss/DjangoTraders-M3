@@ -220,6 +220,14 @@ customer_category_units_chart_url = path(
     customers.customer_category_units_chart, name="customer_category_units_chart",
 )
 
+# GET /djtraders/customers/<id>/discount-by-category-chart/
+# ?year=1997&metric=dollars&top=10&kind=bar
+# -> customers.customer_discount_by_category_chart
+customer_discount_by_category_chart_url = path(
+    "customers/<str:customer_id>/discount-by-category-chart/",
+    customers.customer_discount_by_category_chart,name="customer_discount_by_category_chart",
+)
+
 customer_info_url = path(
     "customers/<str:customer_id>/info/",
     customers.customer_info, name="customer_info",
@@ -327,6 +335,7 @@ urlpatterns = [
     customer_top_products_units_chart_url,
     customer_category_revenue_chart_url,
     customer_category_units_chart_url,
+    customer_discount_by_category_chart_url,
     customer_info_url,
     customer_orders_url,
     supplier_login_url,

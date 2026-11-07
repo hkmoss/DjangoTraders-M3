@@ -30,6 +30,12 @@
     </div>
 </div>
 
+<div class="row g-3 mb-3">
+    <div class="col-lg-6">
+        {% include "djtraders/customers/_customer_discount_by_category.html" %}
+    </div>
+</div>
+
 {% else %}
     <div class="dt-subtle">This customer has no placed orders to chart yet.</div>
 {% endif %}

@@ -179,4 +179,29 @@ function ActivateCategoryUnitsControls($pane) {
     $select.on("change", loadCategoryUnits);
 }
 
+function ActivateDiscountCategoryControls($pane) {
+    const $controls = $pane.find("#discount-category-controls");
+    if ($controls.length === 0) {
+        return;
+    }
 
+    const $year = $controls.find("#discount-category-year");
+    const $metric = $controls.find("#discount-category-metric");
+
+    function loadDiscountCategory() {
+        $.get($controls.data("url"), {
+        
+            year: $year.val(),
+            metric: $metric.val()
+        })
+        .done(function (html) {
+            $("#dashboard-discount-category").html(html);
+        })
+        .fail(function () {
+            $("#dashboard-discount-category")
+                .text("Could not load the chart.");
+        });
+    }
+    $year.on("change", loadDiscountCategory);
+    $metric.on("change", loadDiscountCategory);
+}

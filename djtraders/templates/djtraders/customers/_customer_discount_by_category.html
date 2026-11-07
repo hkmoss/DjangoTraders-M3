@@ -1,0 +1,37 @@
+<div class="dt-card h-100">
+    <h5 class="dt-card-title">Discounts by Category</h5>
+
+    <nav id="discount-category-controls"
+         class="dt-controls"
+         data-url="{% url 'djtraders:customer_discount_by_category_chart' customer.customer_id %}">
+
+        <div class="dt-control-group">
+            <label for="discount-category-year"
+                   class="fw-bold mb-0">Year</label>
+
+            <select id="discount-category-year"
+                    class="form-select w-auto">
+                <option value="">All Years</option>
+                {% for year in order_years %}
+                    <option value="{{ year }}">{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="dt-control-group">
+            <label for="discount-category-metric"
+                   class="fw-bold mb-0">Metric</label>
+
+            <select id="discount-category-metric"
+                    class="form-select w-auto">
+                <option value="dollars" selected>Dollars</option>
+                <option value="percent">Percent</option>
+            </select>
+        </div>
+
+    </nav>
+
+    <div id="dashboard-discount-category">
+        {{ discount_by_category_plot|safe }}
+    </div>
+</div>

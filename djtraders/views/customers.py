@@ -200,6 +200,7 @@ def customer_dashboard(request, customer_id):
         "unit_share_by_category_plot": customer.unit_share_by_category_plot(selected_year),
         "top_products_revenue_plot": customer.top_products_revenue_plot(),
         "top_products_units_plot": customer.top_products_units_plot(),
+        "discount_by_category_plot": customer.discount_by_category_plot(),
     }
     return render(request, "djtraders/customers/_customer_dashboard.html", context)
 
@@ -288,6 +289,39 @@ def customer_top_products_units_chart(request, customer_id):
 
     return HttpResponse(plot or "<p>No orders on record.</p>")
 
+def customer_discount_by_category_chart(request, customer_id):
+    """
+    The dashboard's Discount by Category chart.
+    Reload for ?year=, ?metric=, ?top=, and ?kind=,
+    returning only the chart HTML.
+    """
+    if customer_tab_denied(request, customer_id):
+        return HttpResponse(status=403)
+
+    customer = get_object_or_404(Customer, pk=customer_id)
+
+    year = request.GET.get("year", "")
+    metric = request.GET.get("metric", "dollars")
+    top = request.GET.get("top", "10")
+    kind = request.GET.get("kind", "bar")
+
+    if top not in ("5", "10", "all"):
+        return HttpResponse("Choose a valid top value.", status=400)
+
+    if metric not in ("dollars", "percent"):
+        return HttpResponse("Choose a valid metric.", status=400)
+
+    if kind not in ("bar", "column", "pie"):
+        return HttpResponse("Choose a valid chart type.", status=400)
+
+    plot = customer.discount_by_category_plot(
+        year=year or None,
+        metric=metric,
+        top=None if top == "all" else int(top),
+        kind=kind,
+    )
+
+    return HttpResponse(plot or "<p>No orders on record.</p>")
 
 def customer_category_units_chart(request, customer_id):
     """
