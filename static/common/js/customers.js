@@ -178,3 +178,5 @@ function ActivateCategoryUnitsControls($pane) {
 
     $select.on("change", loadCategoryUnits);
 }
+
+
