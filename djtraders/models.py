@@ -1705,6 +1705,42 @@ class Supplier(models.Model):
             text=text,
         )
 
+    def sales_by_country_plot(self, top=10, metric="revenue"):
+        """Revenue or orders by customer country."""
+        frame = self._placed_lines_frame()
+        if frame.empty:
+            return None
+
+        by_country = (
+            frame.groupby("customer_country", as_index=False)
+            .agg(
+                revenue=("revenue", "sum"),
+                orders=("order_id", "nunique"),
+            )
+            .sort_values(metric)
+        )
+
+        if top:
+            by_country = by_country.tail(top)
+
+        return bar_figure(
+            by_country,
+            "customer_country",
+            metric,
+            f"Top {top} Countries by "
+            f"{'Revenue' if metric == 'revenue' else 'Orders'}"
+                if top else
+            f"{'Revenue' if metric == 'revenue' else 'Orders'} by Country",
+            {
+                "customer_country": "Country",
+                "revenue": "Revenue ($)",
+                "orders": "Orders",
+            },
+            horizontal=True,
+            trend=False,
+            height=max(420, 32 * len(by_country) + 100),
+        )
+
     def supplier_comparison(self):
         """
         This supplier compared with all suppliers:

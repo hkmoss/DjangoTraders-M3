@@ -36,6 +36,7 @@ def lines_frame(lines):
         "order_id",
         "order__order_date",
         "order__customer__company_name",
+        "order__customer__country",
         "product__product_name",
         "product__category__category_name",
         "unit_price",
@@ -48,6 +49,7 @@ def lines_frame(lines):
     frame = frame.rename(columns={
         "order__order_date": "order_date",
         "order__customer__company_name": "customer_name",
+        "order__customer__country": "customer_country",
         "product__product_name": "product_name",
         "product__category__category_name": "category_name",
     })
@@ -57,6 +59,7 @@ def lines_frame(lines):
     frame["revenue"] = frame["unit_price"] * frame["quantity"] * (1 - frame["discount"])
     frame["category_name"] = frame["category_name"].fillna("Uncategorized")
     frame["customer_name"] = frame["customer_name"].fillna("Unknown customer")
+    frame["customer_country"] = frame["customer_country"].fillna("Unknown country")
     return frame
 
 
