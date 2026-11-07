@@ -1,11 +1,17 @@
-<div class="card shadow-sm">
-    <div class="card-body">
+<div class="dt-card h-100">
+    <h5 class="dt-card-title">Geographic Distribution</h5>
 
-        <h5>Revenue by Country</h5>
+    <nav id="country-controls"
+         class="dt-controls"
+         data-url="{% url 'djtraders:supplier_sales_by_country_chart' supplier.supplier_id %}">
 
-        <div id="supplier-country-chart">
-            Country chart goes here
-        </div>
+        {% include "djtraders/customers/_top_radios.html" with name="country-top" %}
 
+        {% include "djtraders/suppliers/_supplier_country_metric.html" with name="country" %}
+
+    </nav>
+
+    <div id="dashboard-country">
+        {{ supplier_country_plot|safe }}
     </div>
 </div>

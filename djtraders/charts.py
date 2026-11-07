@@ -108,7 +108,7 @@ def bar_figure(data, category, value, title, labels, color_names=None,
     names = list(data[category])
     values = list(data[value])
     if text is None:
-        text = [f"{v:,.0f}" if value == "quantity" else f"${v:,.0f}" for v in values]
+        text = [f"{v:,.0f}" if value in {"quantity", "orders"} else f"${v:,.0f}" for v in values]
 
     # px.bar draws the bars and names the axes from labels.
     x, y = (value, category) if horizontal else (category, value)
@@ -127,7 +127,7 @@ def bar_figure(data, category, value, title, labels, color_names=None,
     if trend and len(values) >= 2:
         slope, intercept = np.polyfit(np.arange(len(values)), values, 1)
         fitted = list(np.maximum(slope * np.arange(len(values)) + intercept, 0))
-        prefix = "" if value == "quantity" else "$"
+        prefix = "" if value in {"quantity", "orders"} else "$"
         line = {"mode": "lines", "name": "Trend", "line": {"color": "#444444", "width": 2, "dash": "dash"},
                 "hovertemplate": "Trend: " + prefix + "%{y:,.0f}<extra></extra>"}
         figure.add_scatter(**({"x": fitted, "y": names} if horizontal else {"x": names, "y": fitted}), **line)

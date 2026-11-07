@@ -81,81 +81,63 @@ function ActivateCustomerControls($pane) {
     if ($controls.length === 0) {
         return;
     }
+
     const $top = $controls.find("input[name='customer-top']");
     const $kind = $controls.find("#customer-kind");
+
     function loadCustomers() {
-        $.get($controls.data("url"), { top: $top.filter(":checked").val(), kind: $kind.val() })
-            .done(function (html) { $("#dashboard-customers").html(html); })
-            .fail(function () { $("#dashboard-customers").text("Could not load the chart."); });
+        $.get(
+            $controls.data("url"),
+            {
+                top: $top.filter(":checked").val(),
+                kind: $kind.val()
+            }
+        )
+        .done(function (html) {
+            $("#dashboard-customers").html(html);
+        })
+        .fail(function () {
+            $("#dashboard-customers").text("Could not load the chart.");
+        });
     }
+
     $top.on("change", loadCustomers);
     $kind.on("change", loadCustomers);
 }
 
 /**
- * Employee dashboard: the revenue-over-time card. "View by" (Year or
- * Month) changes the chart in #dashboard-revenue. The year dropdown does
- * different things per level: at Month it filters the chart to that year;
- * at Year it is labeled "Details for" and opens a modal for the chosen year.
+ * Supplier dashboard: Revenue by Country. The "Show Top"
+ * radio buttons (5, 10, All) and the "Metric" dropdown
+ * (Revenue, Orders) reload the chart in #dashboard-country.
  * @param {jQuery} $pane - the tab pane that was just loaded
  */
-function ActivateRevenueOverTime($pane) {
-    const $controls = $pane.find("#revenue-controls");
+function ActivateCountryControls($pane) {
+    const $controls = $pane.find("#country-controls");
     if ($controls.length === 0) {
         return;
     }
-    const $level = $controls.find("input[name='revenue-level']");
-    const $year = $controls.find("#revenue-year");
-    const $yearLabel = $controls.find("label[for='revenue-year']");
-    const $firstOption = $year.find("option[value='all']");
 
-    function currentLevel() {
-        return $level.filter(":checked").val();
-    }
+    const $top = $controls.find("input[name='country-top']");
+    const $metric = $controls.find("#country-metric");
 
-    function loadRevenue() {
-        $.get($controls.data("url"), { level: currentLevel(), year: $year.val() })
-            .done(function (html) { $("#dashboard-revenue").html(html); })
-            .fail(function () { $("#dashboard-revenue").text("Could not load the chart."); });
-    }
+    function loadCountry() {
+        console.log("country control fired");
 
-    function showDetails(period) {
-        const $modal = $("#revenue-modal");
-        // A modal left inside a tab pane can end up behind its backdrop.
-        if ($modal.parent()[0] !== document.body) {
-            $modal.appendTo("body");
-        }
-
-        function showModal(html) {
-            $("#revenue-modal-content").html(html);
-            // A chart drawn while hidden has no width; resize it once the modal is open.
-            $modal.one("shown.bs.modal", function () {
-                $modal.find(".js-plotly-plot").each(function () { Plotly.Plots.resize(this); });
-            });
-            bootstrap.Modal.getOrCreateInstance($modal[0]).show();
-        }
-
-        $.get($controls.data("detail-url"), { period: period })
-            .done(showModal)
-            .fail(function () { showModal("<div class='modal-body'>Could not load the details.</div>"); });
-    }
-
-    $level.on("change", function () {
-        const atYear = currentLevel() === "year";
-        $yearLabel.text(atYear ? "Details for" : "Year");
-        $firstOption.text(atYear ? "Choose a year" : "All years");
-        $year.val("all");
-        loadRevenue();
-    });
-
-    $year.on("change", function () {
-        if (currentLevel() === "year") {
-            if ($year.val() !== "all") {
-                showDetails($year.val());
-                $year.val("all");
+        $.get(
+            $controls.data("url"),
+            {
+                top: $top.filter(":checked").val(),
+                metric: $metric.val()
             }
-            return;
-        }
-        loadRevenue();
-    });
+        )
+        .done(function (html) {
+            $("#dashboard-country").html(html);
+        })
+        .fail(function () {
+            $("#dashboard-country").text("Could not load the chart.");
+        });
+    }
+
+    $top.on("change", loadCountry);
+    $metric.on("change", loadCountry);
 }

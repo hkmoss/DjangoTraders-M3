@@ -1,11 +1,13 @@
-<label for="{{ name }}-metric" class="form-label mb-0">
-    Metric
-</label>
+<div class="dt-control-group">
+    <label for="{{ name }}-metric" class="fw-bold mb-0">
+        Metric
+    </label>
 
-<select
-    id="{{ name }}-metric"
-    class="form-select form-select-sm"
->
-    <option value="revenue">Revenue</option>
-    <option value="orders">Orders</option>
-</select>
+    <select
+        id="{{ name }}-metric"
+        class="form-select w-auto"
+    >
+        <option value="revenue" selected>Revenue</option>
+        <option value="orders">Orders</option>
+    </select>
+</div>

@@ -118,8 +118,10 @@ function LoadPageTab($tabButton) {
             ActivateCategoryUnitsControls($pane);
             ActivateBreakdownControls($pane);
             ActivateCustomerControls($pane);
+            ActivateCountryControls($pane);
             ActivateTeamComparison($pane);
             ActivateRevenueOverTime($pane);
+           
         })
         .fail(function () {
             $pane.text("Could not load this tab. Please try again.");

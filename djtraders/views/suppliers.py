@@ -111,6 +111,7 @@ def supplier_dashboard(request, supplier_id):
         "top_products_revenue_plot": supplier.top_products_revenue_plot(),
         "top_products_units_plot": supplier.top_products_units_plot(),
         "top_customers_plot": supplier.top_customers_revenue_plot(top=10), 
+        "supplier_country_plot": supplier.sales_by_country_plot(top=10),
         "supplier_comparison_plot": supplier.supplier_comparison_plot(),   
         "supplier_comparison": supplier.supplier_comparison(),
     }
@@ -246,6 +247,31 @@ def supplier_top_customers_chart(request, supplier_id):
     plot = supplier.top_customers_revenue_plot(
         top=None if top == "all" else int(top),
         kind=kind,
+    )
+
+    return HttpResponse(plot or "<p>No orders on record.</p>")
+
+def supplier_sales_by_country_chart(request, supplier_id):
+    """
+    Revenue or orders by customer country.
+    """
+    if supplier_access_denied(request, supplier_id):
+        return HttpResponse(status=403)
+
+    supplier = get_object_or_404(Supplier, pk=supplier_id)
+
+    top = request.GET.get("top", "10")
+    metric = request.GET.get("metric", "revenue")
+
+    if top not in ("5", "10", "all"):
+        return HttpResponse("Choose a valid top.", status=400)
+
+    if metric not in ("revenue", "orders"):
+        return HttpResponse("Choose a valid metric.", status=400)
+
+    plot = supplier.sales_by_country_plot(
+        top=None if top == "all" else int(top),
+        metric=metric,
     )
 
     return HttpResponse(plot or "<p>No orders on record.</p>")
