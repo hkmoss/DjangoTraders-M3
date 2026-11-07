@@ -763,6 +763,10 @@ class Employee(models.Model):
         employee_frame = pd.DataFrame(employee_rows)
         team_frame = pd.DataFrame(team_rows)
 
+        employee_frame["difference"] = (
+            employee_frame["percent"] - team_frame["percent"]
+        )
+
         figure = go.Figure()
 
         figure.add_trace(go.Bar(
@@ -797,22 +801,45 @@ class Employee(models.Model):
             ),
         ))
 
-        figure.update_layout(
-            title="Revenue by Category: You Compared with the team",
-            height=340,
-            yaxis_title="Percent of Revenue",
-            barmode="group",
-        )
-
         max_percent = max(
             employee_frame["percent"].max(),
             team_frame["percent"].max(),
         )
 
-        figure.update_yaxes(range=[0, max_percent * 1.25])
+        # Put all badges at the same height near the top of the chart.
+        badge_y = max_percent * 1.22
+
+        for _, row in employee_frame.iterrows():
+
+            if row["difference"] >= 5:
+                figure.add_annotation(
+                    x=row["category"],
+                    y=badge_y,
+                    text="⭐ Strength",
+                    showarrow=False,
+                    font=dict(size=11),
+                )
+
+            elif row["difference"] <= -5:
+                figure.add_annotation(
+                    x=row["category"],
+                    y=badge_y,
+                    text="⚠ Opportunity",
+                    showarrow=False,
+                    font=dict(size=11),
+                )
+
+        figure.update_layout(
+            title="Revenue by Category: You Compared with the Team",
+            height=340,
+            yaxis_title="Percent of Revenue",
+            barmode="group",
+        )
+
+        figure.update_yaxes(range=[0, max_percent * 1.35])
 
         return figure_html(figure)
-  
+          
     def leaderboard(self):
         """
         Every employee ranked by revenue, as a list of dicts for the
@@ -1187,7 +1214,8 @@ class Supplier(models.Model):
     @classmethod
     def _comparison_frame(cls):
         """
-        One row per supplier with revenue, orders, and customers.
+        One row per supplier with revenue, orders, customers,
+        and derived performance measures.
         """
         rows = (
             OrderDetail.objects.filter(
@@ -1202,12 +1230,28 @@ class Supplier(models.Model):
         )
 
         frame = pd.DataFrame(list(rows))
+
         if frame.empty:
             return frame
 
         frame["supplier_key"] = frame["supplier_key"].astype(int)
 
-        for measure in ("revenue", "orders", "customers"):
+        # Derived measures
+        frame["revenue_per_order"] = (frame["revenue"] / frame["orders"]).fillna(0)
+
+        frame["revenue_per_customer"] = (frame["revenue"] / frame["customers"]).fillna(0)
+
+        frame["orders_per_customer"] = (frame["orders"] / frame["customers"]).fillna(0)
+
+        # Rankings (1 = best)
+        for measure in (
+            "revenue",
+            "orders",
+            "customers",
+            "revenue_per_order",
+            "revenue_per_customer",
+            "orders_per_customer",
+        ):
             frame[f"{measure}_rank"] = (
                 frame[measure]
                 .rank(ascending=False, method="min")
@@ -1755,11 +1799,14 @@ class Supplier(models.Model):
             text=text,
         )
 
-    #What the supplier comparison table can compare.
+    # What the supplier comparison table can compare.
     SUPPLIER_MEASURES = {
         "revenue": "Revenue",
         "orders": "Orders",
         "customers": "Customers",
+        "revenue_per_order": "Average Order Revenue",
+        "revenue_per_customer": "Revenue per Customer",
+        "orders_per_customer": "Orders per Customer",
     }
 
     def supplier_comparison(self):
@@ -1787,7 +1834,15 @@ class Supplier(models.Model):
             comparison.append({
                 "measure": measure,
                 "label": label,
-                "kind": "money" if measure == "revenue" else "count",
+                "kind": (
+                    "money"
+                    if measure in (
+                        "revenue",
+                        "revenue_per_order",
+                        "revenue_per_customer",
+                    )
+                    else "count"
+                ),
                 "you": row[measure],
                 "average": average,
                 "vs_average": (
@@ -1799,6 +1854,7 @@ class Supplier(models.Model):
                 "supplier_count": len(frame),
             })
 
+        print([row["measure"] for row in comparison])
         return comparison
 
     def supplier_comparison_plot(self):

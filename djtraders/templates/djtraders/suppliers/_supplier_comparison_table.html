@@ -49,10 +49,7 @@
                         </span>
                     </td>
 
-                    <td class="text-end">
-                        {% if row.kind == "money" %}${% endif %}
-                        {{ row.best|floatformat:0|intcomma }}
-                    </td>
+                    <td class="text-end">{% if row.kind == "money" %}${% endif %}{{ row.best|floatformat:0|intcomma }}</td>
 
                     <td class="text-end">
                         {{ row.rank }} of {{ row.supplier_count }}
