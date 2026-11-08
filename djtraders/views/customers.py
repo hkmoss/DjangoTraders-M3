@@ -305,6 +305,10 @@ def customer_discount_by_category_chart(request, customer_id):
     top = request.GET.get("top", "10")
     kind = request.GET.get("kind", "bar")
 
+    valid_years = [str(y) for y in customer.order_years()]
+    if year and year not in valid_years:
+        return HttpResponse("Choose a valid year.", status=400)
+    
     if top not in ("5", "10", "all"):
         return HttpResponse("Choose a valid top value.", status=400)
 
@@ -321,7 +325,7 @@ def customer_discount_by_category_chart(request, customer_id):
         kind=kind,
     )
 
-    return HttpResponse(plot or "<p>No orders on record.</p>")
+    return HttpResponse(plot or "<p>No discounts were received in the selected year.</p>")
 
 def customer_category_units_chart(request, customer_id):
     """

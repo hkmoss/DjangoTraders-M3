@@ -397,6 +397,9 @@ class Customer(models.Model):
             prefix = "$"
 
         by_category = frame.sort_values(value_column)
+        by_category = by_category[by_category[value_column] > 0]
+        if by_category.empty:
+            return None
 
         if kind == "pie":
             slices = top_with_other(
