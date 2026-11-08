@@ -1,0 +1,44 @@
+<div class="dt-card h-100">
+    <h5 class="dt-card-title">Buy It Again</h5>
+
+    <div class="dt-card-body">
+
+        {% if buy_it_again %}
+
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Typical Days Between Orders</th>
+                        <th>Days Since Last Order</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for row in buy_it_again %}
+                    <tr>
+                        <td>{{ row.product_name }}</td>
+                        <td>{{ row.typical_gap }} days</td>
+                        <td>{{ row.days_since }} days</td>
+                        <td>${{ row.value|floatformat:0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+            <small class="text-muted">
+                These recommendations are based on historical purchasing patterns and are not a forecast of future sales.
+            </small>
+
+        {% else %}
+
+            <div class="text-muted">
+                No reorder opportunities identified.
+            </div>
+
+        {% endif %}
+
+    </div>
+</div>

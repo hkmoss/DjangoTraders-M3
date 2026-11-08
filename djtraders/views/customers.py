@@ -201,6 +201,8 @@ def customer_dashboard(request, customer_id):
         "top_products_revenue_plot": customer.top_products_revenue_plot(),
         "top_products_units_plot": customer.top_products_units_plot(),
         "discount_by_category_plot": customer.discount_by_category_plot(),
+        "discount_by_category_plot": customer.discount_by_category_plot(),
+        "buy_it_again": customer.buy_it_again_top(),
     }
     return render(request, "djtraders/customers/_customer_dashboard.html", context)
 

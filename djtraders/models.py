@@ -81,6 +81,86 @@ class Customer(models.Model):
             order__customer=self, order__order_date__isnull=False
         ))
 
+    def buy_it_again_frame(self):
+        """
+        Products this customer regularly reorders and may be due to buy again.
+
+        A product must appear on at least 3 different orders. The typical gap
+        between purchases is the median number of days between orders.
+        """
+        frame = self._order_lines_frame()
+
+        if frame.empty:
+            return pd.DataFrame()
+
+        min_orders = 3
+        lapsed_after = 3
+        min_gap_days = 30
+
+        keys = ["product_name", "order_id"]
+
+        orders = (
+            frame.groupby(keys, as_index=False)
+            .agg(
+                order_date=("order_date", "first"),
+                revenue=("revenue", "sum"),
+            )
+            .sort_values("order_date")
+        )
+
+        today = pd.Timestamp.today().normalize()
+
+        due = []
+
+        for product, group in orders.groupby("product_name"):
+
+            if len(group) < min_orders:
+                continue
+
+            gaps = (
+                group["order_date"]
+                .diff()
+                .dt.days
+                .dropna()
+            )
+
+            typical_gap = gaps.median()
+
+            days_since = (
+                today - group["order_date"].iloc[-1]
+            ).days
+
+            due_now = (
+                typical_gap < days_since <=
+                lapsed_after * typical_gap
+            )
+
+            if typical_gap < min_gap_days or not due_now:
+                continue
+
+            due.append({
+                "product_name": product,
+                "typical_gap": round(typical_gap),
+                "days_since": round(days_since),
+                "days_overdue": round(days_since - typical_gap),
+                "value": round(group["revenue"].mean(), 2),
+            })
+
+        if not due:
+            return pd.DataFrame()
+
+        return (
+            pd.DataFrame(due)
+            .sort_values("value", ascending=False)
+        )
+
+    def buy_it_again_top(self, count=5):
+        """Top overdue reorder opportunities."""
+        frame = self.buy_it_again_frame()
+        if frame.empty:
+            return []
+        return frame.head(count).to_dict("records")
+
     def order_years(self):
         """Distinct years this customer has placed orders in, newest first."""
         years = self.order_set.filter(order_date__isnull=False).dates("order_date", "year")
