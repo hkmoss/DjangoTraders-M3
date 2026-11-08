@@ -1996,10 +1996,10 @@ class Supplier(models.Model):
             by_country,
             "customer_country",
             metric,
-            f"Top {top} Countries by "
-            f"{'Revenue' if metric == 'revenue' else 'Orders'}"
+            f"Top {top} countries by "
+            f"{'revenue' if metric == 'revenue' else 'orders'}"
                 if top else
-            f"{'Revenue' if metric == 'revenue' else 'Orders'} by Country",
+            f"{'revenue' if metric == 'revenue' else 'orders'} by Country",
             {
                 "customer_country": "Country",
                 "revenue": "Revenue ($)",

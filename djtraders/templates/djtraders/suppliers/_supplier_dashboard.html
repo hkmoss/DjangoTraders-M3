@@ -2,6 +2,7 @@
 
     {% include "djtraders/suppliers/_supplier_tiles.html" %}
 
+    {# Row 1: Revenue over time and revenue by month. #}
     <div class="row g-3 mb-3">
         <div class="col-lg-6">
             {% include "djtraders/suppliers/_supplier_revenue_over_time.html" %}
@@ -12,6 +13,7 @@
         </div>
     </div>
 
+    {# Row 2: Revenue breakdown and unit share by category. #}
     <div class="row g-3 mb-3">
         <div class="col-lg-6">
             {% include "djtraders/suppliers/_supplier_revenue_breakdown.html" %}
@@ -22,6 +24,7 @@
         </div>
     </div>
 
+    {# Row 3: Top products by revenue and top products by units. #}
     <div class="row g-3 mb-3">
         <div class="col-lg-6">
             {% include "djtraders/suppliers/_supplier_top_products.html" %}
@@ -32,25 +35,25 @@
         </div>
     </div>
 
+    {# Row 4: Top customers by revenue and geographic distribution. #}
     <div class="row g-3 mb-3">
-        <div class="col-12">
+        <div class="col-lg-6">
             {% include "djtraders/suppliers/_supplier_top_customers.html" %}
+        </div>
+
+        <div class="col-lg-6">
+            {% include "djtraders/suppliers/_supplier_sales_by_country.html" %}
         </div>
     </div>
 
+    {# Row 5: Supplier comparison chart and table. #}
     <div class="row g-3 mb-3">
-    <div class="col-lg-6">
-    {% include "djtraders/suppliers/_supplier_comparison_chart.html" %}
-    </div>
+        <div class="col-lg-6">
+            {% include "djtraders/suppliers/_supplier_comparison_chart.html" %}
+        </div>
 
-    <div class="col-lg-6">
-    {% include "djtraders/suppliers/_supplier_comparison_table.html" %}
-    </div>
-    </div>
-
-    <div class="row mt-4">
-        <div class="col-12">
-            {% include "djtraders/suppliers/_supplier_sales_by_country.html" %}
+        <div class="col-lg-6">
+            {% include "djtraders/suppliers/_supplier_comparison_table.html" %}
         </div>
     </div>
 

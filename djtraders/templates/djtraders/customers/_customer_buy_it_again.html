@@ -1,6 +1,11 @@
 <div class="dt-card h-100">
     <h5 class="dt-card-title">Buy It Again</h5>
 
+    <div class="dt-subtle">
+        The products shown below are items you have purchased repeatedly in the past and may be ready to reorder. Purchasing patterns are not always consistent, so use this list as a reminder rather than a prediction of future purchasing needs.
+    </div>
+
+
     <div class="dt-card-body">
 
         {% if buy_it_again %}
@@ -28,9 +33,6 @@
 
             </table>
 
-            <small class="text-muted">
-                These recommendations are based on historical purchasing patterns and are not a forecast of future sales.
-            </small>
 
         {% else %}
 
