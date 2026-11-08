@@ -38,13 +38,22 @@
         </div>
     </div>
 
-        {# Row 4: category mix. #}
+    {# Row 4: category mix. #}
     <div class="row g-3 mb-3">
         <div class="col-12">
             {% include "djtraders/employees/_employee_category_mix.html" %}
         </div>
     </div>
-    
+
+    {# Row 5: reorder opportunities. #}
+    <div class="row g-3 mb-3">
+        <div class="col-12">
+            {% include "djtraders/employees/_employee_reorder_opportunities.html" %}
+        </div>
+    </div>
+
 {% else %}
-    <div class="dt-subtle">No placed orders on record for {{ employee.first_name }} {{ employee.last_name }} yet.</div>
+    <div class="dt-subtle">
+        No placed orders on record for {{ employee.first_name }} {{ employee.last_name }} yet.
+    </div>
 {% endif %}

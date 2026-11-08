@@ -1090,9 +1090,92 @@ class Employee(models.Model):
             height=max(420, per_bar * len(by_customer) + 100) if horizontal else 420, trend=False, text=text,
         )
 
+    def reorder_opportunities_frame(self):
+        """
+        Customers who may be ready to reorder products based on
+        prior purchasing patterns.
+        """
+        frame = self._order_lines_frame()
 
-    # What the dashboard's "Revenue by" dropdown can group by: the key, the
-    # singular word used in chart titles, and the OrderDetail field to group on.
+        if frame.empty:
+            return pd.DataFrame()
+
+        min_orders = 3
+        lapsed_after = 3
+        min_gap_days = 30
+
+        orders = (
+            frame.groupby(
+                ["customer_name", "product_name", "order_id"],
+                as_index=False
+            )
+            .agg(
+                order_date=("order_date", "first"),
+                revenue=("revenue", "sum"),
+            )
+            .sort_values("order_date")
+        )
+
+        today = pd.Timestamp.today().normalize()
+
+        due = []
+
+        for (customer, product), group in orders.groupby(
+            ["customer_name", "product_name"]
+        ):
+
+            if len(group) < min_orders:
+                continue
+
+            gaps = (
+                group["order_date"]
+                .diff()
+                .dt.days
+                .dropna()
+            )
+
+            typical_gap = gaps.median()
+
+            days_since = (
+                today - group["order_date"].iloc[-1]
+            ).days
+
+            due_now = (
+                typical_gap < days_since <=
+                lapsed_after * typical_gap
+            )
+
+            if typical_gap < min_gap_days or not due_now:
+                continue
+
+            due.append({
+                "customer_name": customer,
+                "product_name": product,
+                "typical_gap": round(typical_gap),
+                "days_since": round(days_since),
+                "days_overdue": round(days_since - typical_gap),
+                "value": round(group["revenue"].mean(), 2),
+            })
+
+        if not due:
+            return pd.DataFrame()
+
+        return (
+            pd.DataFrame(due)
+            .sort_values("value", ascending=False)
+        )
+
+    def reorder_opportunities_top(self, count=10):
+        """Top reorder opportunities for this employee."""
+        frame = self.reorder_opportunities_frame()
+
+        if frame.empty:
+            return []
+
+        return frame.head(count).to_dict("records")
+
+        # What the dashboard's "Revenue by" dropdown can group by: the key, the
+        # singular word used in chart titles, and the OrderDetail field to group on.
     BREAKDOWNS = {
         "supplier": ("supplier", "product__supplier__company_name"),
         "product": ("product", "product__product_name"),

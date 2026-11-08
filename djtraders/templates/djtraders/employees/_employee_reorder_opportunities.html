@@ -1,0 +1,45 @@
+<div class="dt-card h-100">
+    <h5 class="dt-card-title">Reorder Opportunities</h5>
+
+    <div class="dt-card-body">
+
+        {% if reorder_opportunities %}
+
+        <table class="table table-sm table-hover">
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Product</th>
+                    <th>Typical Days between Orders</th>
+                    <th>Days Since Last Order</th>
+                    <th>Average Order Value</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for row in reorder_opportunities %}
+                <tr>
+                    <td>{{ row.customer_name }}</td>
+                    <td>{{ row.product_name }}</td>
+                    <td>{{ row.typical_gap }}</td>
+                    <td>{{ row.days_since }}</td>
+                    <td>${{ row.value|floatformat:0 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <small class="text-muted">
+            Opportunities are based on prior purchasing patterns and are not a forecast of future sales.
+        </small>
+
+        {% else %}
+
+        <div class="text-muted">
+            No reorder opportunities identified.
+        </div>
+
+        {% endif %}
+
+    </div>
+</div>
