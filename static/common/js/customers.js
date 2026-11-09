@@ -142,41 +142,61 @@ function ActivateTopProductsUnitsControls($pane) {
 }
 
 function ActivateCategoryRevenueControls($pane) {
-    const $select = $pane.find("#category-revenue-year");
-    if ($select.length === 0) {
+    
+    const $year = $pane.find("#category-revenue-year");
+    const $kind = $pane.find("#category-revenue-kind");
+
+    if ($year.length === 0) {
         return;
     }
 
     function loadCategoryRevenue() {
-        $.get($select.data("url"), { year: $select.val() })
-            .done(function (html) {
-                $("#dashboard-category-revenue").html(html);
-            })
-            .fail(function () {
-                $("#dashboard-category-revenue").text("Could not load the chart.");
-            });
+        
+        $.get(
+            $year.data("url"),
+            {
+                year: $year.val(),
+                kind: $kind.val()
+            }
+        )
+        .done(function (html) {
+            $("#dashboard-category-revenue").html(html);
+        })
+        .fail(function () {
+            $("#dashboard-category-revenue").text("Could not load the chart.");
+        });
     }
 
-    $select.on("change", loadCategoryRevenue);
+    $year.on("change", loadCategoryRevenue);
+    $kind.on("change", loadCategoryRevenue);
 }
 
 function ActivateCategoryUnitsControls($pane) {
-    const $select = $pane.find("#category-units-year");
-    if ($select.length === 0) {
+    const $year = $pane.find("#category-units-year");
+    const $kind = $pane.find("#category-units-kind");
+
+    if ($year.length === 0) {
         return;
     }
 
     function loadCategoryUnits() {
-        $.get($select.data("url"), { year: $select.val() })
-            .done(function (html) {
-                $("#dashboard-category-units").html(html);
-            })
-            .fail(function () {
-                $("#dashboard-category-units").text("Could not load the chart.");
-            });
+        $.get(
+            $year.data("url"),
+            {
+                year: $year.val(),
+                kind: $kind.val()
+            }
+        )
+        .done(function (html) {
+            $("#dashboard-category-units").html(html);
+        })
+        .fail(function () {
+            $("#dashboard-category-units").text("Could not load the chart.");
+        });
     }
 
-    $select.on("change", loadCategoryUnits);
+    $year.on("change", loadCategoryUnits);
+    $kind.on("change", loadCategoryUnits);
 }
 
 function ActivateDiscountCategoryControls($pane) {

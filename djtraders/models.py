@@ -255,8 +255,8 @@ class Customer(models.Model):
             "prior_ytd": prior_ytd,
         }
 
-    def revenue_by_category_plot(self, year=None):
-        """Bar chart of this customer's revenue by category."""
+    def revenue_by_category_plot(self, year=None, kind="bar"):
+        """Revenue by category as a bar, column, or pie chart."""
         frame = self._order_lines_frame()
         if year:
             frame = frame[frame["year"] == year]
@@ -266,8 +266,23 @@ class Customer(models.Model):
         by_category = (
             frame.groupby("category_name", as_index=False)["revenue"]
             .sum()
-            .sort_values("revenue", ascending=False)
+            .sort_values("revenue")
         )
+
+        if kind == "pie":
+            return pie_figure(
+                by_category,
+                "category_name",
+                "revenue",
+                "Revenue by category",
+            color_names=by_category["category_name"],                
+            prefix="$",
+            )
+
+        horizontal = kind != "column"
+
+        if not horizontal:
+            by_category = by_category.iloc[::-1]
 
         return bar_figure(
             by_category,
@@ -278,11 +293,13 @@ class Customer(models.Model):
                 "category_name": "Category",
                 "revenue": "Revenue ($)",
             },
-             trend=False,
+            color_names=by_category["category_name"],
+            horizontal=horizontal,
+            trend=False,
         )
 
-    def unit_share_by_category_plot(self, year=None):
-        """Pie chart of unit share by category."""
+    def unit_share_by_category_plot(self, year=None, kind="bar"):
+        """Unit share by category as a bar, column, or pie chart."""
         frame = self._order_lines_frame()
         if year:
             frame = frame[frame["year"] == year]
@@ -292,16 +309,36 @@ class Customer(models.Model):
         by_category = (
             frame.groupby("category_name", as_index=False)["quantity"]
             .sum()
-            .sort_values("quantity", ascending=False)
+            .sort_values("quantity")
         )
 
-        return pie_figure(
+        if kind == "pie":
+            return pie_figure(
+                by_category,
+                "category_name",
+                "quantity",
+                "Unit share by category",
+                color_names=by_category["category_name"],
+                prefix="",
+            )
+
+        horizontal = kind != "column"
+
+        if not horizontal:
+            by_category = by_category.iloc[::-1]
+
+        return bar_figure(
             by_category,
             "category_name",
             "quantity",
             "Unit share by category",
+            {
+                "category_name": "Category",
+                "quantity": "Units",
+            },
             color_names=by_category["category_name"],
-            prefix="",
+            horizontal=horizontal,
+            trend=False,
         )
 
     def top_products_revenue_plot(self, top=10, kind="bar"):

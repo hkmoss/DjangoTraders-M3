@@ -244,7 +244,9 @@ def customer_category_revenue_chart(request, customer_id):
     if year not in customer.order_years():
         return HttpResponse("Choose a valid year.", status=400)
 
-    plot = customer.revenue_by_category_plot(year)
+    kind = request.GET.get("kind", "bar")
+    
+    plot = customer.revenue_by_category_plot(year, kind=kind)
 
     return HttpResponse(plot or "<p>No orders on record.</p>")
 
@@ -347,7 +349,9 @@ def customer_category_units_chart(request, customer_id):
     if year not in customer.order_years():
         return HttpResponse("Choose a valid year.", status=400)
 
-    plot = customer.unit_share_by_category_plot(year)
+    kind = request.GET.get("kind", "bar")
+
+    plot = customer.unit_share_by_category_plot(year, kind=kind)
 
     return HttpResponse(plot or "<p>No orders on record.</p>")
 

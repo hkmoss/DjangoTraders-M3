@@ -10,6 +10,8 @@
                 {% endfor %}
             </select>
         </div>
+
+        {% include "djtraders/employees/_chart_kind.html" with name="category-units-kind" allow_pie=True %}
     </nav>
 
     <div id="dashboard-category-units">
